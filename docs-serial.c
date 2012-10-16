@@ -22,6 +22,8 @@ typedef struct document {
 	double *scores;
 } document_t
 
+/* piu*/
+
 unsigned num_cabinets;
 unsigned num_documents;
 unsigned num_subjects;
