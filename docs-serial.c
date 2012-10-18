@@ -16,23 +16,69 @@
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
 
+
+/* Document class */
 typedef struct document {
 	int id;
 	int cabinet;
 	double *scores;
-} document_t;
+} Document;
 
-/* piu*/
+Document* newDocument(int id, int cabinet, unsigned int num_subjects) {
+	document *doc = (Document*) malloc(sizeof(Document));
+	doc->id = id;
+	doc->cabinet = cabinet;
+	doc->scores = (double*) malloc(sizeof(double) * num_subjects);
+	return doc;
+}
 
-unsigned num_cabinets;
-unsigned num_documents;
-unsigned num_subjects;
+void freeDocument(Document *doc) {
+	free(doc->scores);
+	free(doc);
+}
+
+void document_setScore(Document *doc, double score, unsigned int pos) {
+	doc->scores[pos] = score;
+}
+
+/* --- */
+/* Data class */
+typedef struct data {
+	unsigned int num_cabinets;
+	unsigned int num_documents;
+	unsigned int num_subjects;
+	Document *documents;
+
+} Data;
+
+Data *newData(unsigned int num_cabinets, unsigned int num_documents, unsigned int num_subjects) {
+	Data *data = (Data*) malloc(sizeof(Data));
+	data->num_cabinets = num_cabinets;
+	data->num_documents = num_documents;
+	data->num_subjects = num_subjects;
+	data->documents = (Document*) malloc(sizeof(Document) * num_documents);
+	return data;
+}
+
+void freeData(Data *data) {
+	free(data->documents);
+	free(data);
+}
+
+void data_setDocument(Data *data, Document *doc, unsigned int pos) {
+	data->documents[pos] = doc;
+}
+/* --- */
+
 
 /* Parses the input (.in) file and creates all data according to its contents */
-void load_data(FILE *in, document_t ***docs)
-{
-	document_t **documents;
-	document_t *document;
+Data *load_data(FILE *in) {
+	unsigned int num_cabinets;
+	unsigned int num_documents;
+	unsigned int num_subjects;
+	Data *data;
+	Document *document;
+
 	int id_temp = 0;
 	int i,j;
 	char line[BUFFER_SIZE];	
@@ -41,8 +87,10 @@ void load_data(FILE *in, document_t ***docs)
 	fscanf(in, "%d\n", &num_cabinets);
 	fscanf(in, "%d\n", &num_documents);
 	fscanf(in, "%d\n", &num_subjects);
-	documents = (document_t **)malloc(sizeof(document_t *)*num_documents);
-	*docs = documents;
+	data = newData(num_cabinets, num_documents, num_subjects);
+
+	//documents = (document_t **)malloc(sizeof(document_t *)*num_documents);
+	//*docs = documents;
 	
 	while(fgets(line, BUFFER_SIZE, in) != NULL)
 	{
@@ -55,17 +103,21 @@ void load_data(FILE *in, document_t ***docs)
 		token = strtok(line, DELIMS);
 		//id_temp = strtol(token,NULL,10);
 		id_temp = atoi(token);
+		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
+		data_setDocument(data, document, id_temp);
+		/*
 		document = (document_t *)malloc(sizeof(document_t));
 		documents[id_temp] = document;
 		document->id = id_temp;
 		document->cabinet = id_temp%num_cabinets;
-		document->scores = (double*)malloc(sizeof(double)*num_subjects);
+		document->scores = (double*)malloc(sizeof(double)*num_subjects);*/
 		printf("document: %d %d\n",document->id,document->cabinet);
 		//get subjects and add them to double vector
 		for(i = 0; i < num_subjects; i++)
 		{
 			token = strtok(NULL, DELIMS);
-			document->scores[i] = strtod(token,NULL);
+			document_setScore(document, strtod(token,NULL), i);
+			//document->scores[i] = strtod(token,NULL);
 		}
 	}
 	
@@ -75,7 +127,7 @@ int main (int argc, char **argv)
 {
 	FILE *in; 
 	double elapsed_time;
-	document_t **documents;
+	Data *data;
 	
 	int i = 0;
 	if(argc != 2)
@@ -88,10 +140,10 @@ int main (int argc, char **argv)
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE); 
 	}
-	load_data(in, &documents);
+	data = load_data(in);
 	for(i = 0; i < num_documents; i++)
 	{
-		printf("%d %d\n", documents[i]->id, documents[i]->cabinet);
+		printf("%d %d\n", data->documents[i]->id, documents[i]->cabinet);
 	}
 	return 0;
 }
