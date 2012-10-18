@@ -60,7 +60,6 @@ void load_data(FILE *in, document_t ***docs)
 		document->id = id_temp;
 		document->cabinet = id_temp%num_cabinets;
 		document->scores = (double*)malloc(sizeof(double)*num_subjects);
-		printf("document: %d %d\n",document->id,document->cabinet);
 		//get subjects and add them to double vector
 		for(i = 0; i < num_subjects; i++)
 		{
@@ -76,8 +75,11 @@ int main (int argc, char **argv)
 	FILE *in; 
 	double elapsed_time;
 	document_t **documents;
-	
+	int changed_flag = 1;
+	double **cabinets;
 	int i = 0;
+	int j = 0;
+	
 	if(argc != 2)
 	{
 		printf("[argc] Incorrect Number of arguments.\n");
@@ -88,11 +90,38 @@ int main (int argc, char **argv)
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE); 
 	}
+	
 	load_data(in, &documents);
-	for(i = 0; i < num_documents; i++)
+	
+	//create the arrays that store the cabinet coordinates
+	cabinets = (double **)malloc(sizeof(double *)*num_cabinets);
+	for(i=0; i < num_subjects; i++)
+	{
+		cabinets[i] = (double *)calloc(num_subjects,sizeof(double));
+	}
+	
+	/*for(i = 0; i < num_documents; i++)
 	{
 		printf("%d %d\n", documents[i]->id, documents[i]->cabinet);
+	}*/
+	for(i = 0; i < num_cabinets; i++)
+	{
+		printf("cabinet %d: ", i);
+		for(j = 0; j < num_subjects;j++)
+		{
+			printf("%d ", cabinets[i][j]);
+		}
+		printf("\n");
 	}
+	//main cycle: only stops when we don't move documents across cabinets
+	changed_flag = 0;
+	while(changed_flag)
+	{
+		//calculate new cabinet coordinates 
+		//by doing an average of the coordinates of their documents
+	}
+	
+	
 	return 0;
 }
 
