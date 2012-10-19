@@ -103,23 +103,45 @@ void removeDocument(Cabinet * cab, Document *doc)
 }*/
 
 /* --- */
+/* Cabinet class */
+typedef struct cabinet {
+	unsigned int size;
+	double *average;
+} Cabinet;
 
+Cabinet *newCabinet(unsigned int size) {
+	Cabinet *cab = (Cabinet*) malloc(sizeof(Cabinet));
+	cab->size = size;
+	cab->average = (double*) calloc(size, sizeof(double));
+	return cab;
+}
+
+void freeCabinet(Cabinet *cab) {
+	free(cab->average);
+	free(cab);
+}
+/* --- */
 /* Data class */
 typedef struct data {
 	unsigned int num_cabinets;
 	unsigned int num_documents;
 	unsigned int num_subjects;
-	//Document ** cabinets;
 	Document **documents;
+	Cabinet **cabinets;
 } Data;
 
 Data *newData(unsigned int num_cabinets, unsigned int num_documents, unsigned int num_subjects) 
 {
+	unsigned int i;
 	Data *data = (Data*) malloc(sizeof(Data));
 	data->num_cabinets = num_cabinets;
 	data->num_documents = num_documents;
 	data->num_subjects = num_subjects;
 	data->documents = (Document**) malloc(sizeof(Document*) * num_documents);
+	data->cabinets = (Cabinet**) malloc(sizeof(Cabinet*) * num_cabinets);
+	for(i = 0; i < num_cabinets; i++) {
+		data->cabinets[i] = newCabinet(num_subjects);
+	}
 	return data;
 }
 
@@ -129,6 +151,10 @@ void freeData(Data *data)
 	for(i = 0; i < data->num_documents; i++) {
 		freeDocument(data->documents[i]);
 	}
+	for(i = 0; i < data->num_cabinets; i++) {
+		freeCabinet(data->cabinets[i]);
+	}
+	free(data->cabinets);
 	free(data->documents);
 	free(data);
 }
@@ -154,7 +180,7 @@ Document *data_getDocument(Data *data, unsigned int pos) {
 
 
 /* Parses the input (.in) file and creates all data according to its contents */
-Data *load_data(FILE *in) {
+Data *load_data(FILE *in, unsigned int ncabs) {
 	unsigned int num_cabinets;
 	unsigned int num_documents;
 	unsigned int num_subjects;
@@ -176,7 +202,7 @@ Data *load_data(FILE *in) {
 		id_temp = atoi(token);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(data, document, id_temp);
-		/*get subjects and add them to double vector*/
+		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
 		{
 			token = strtok(NULL, DELIMS);
@@ -186,41 +212,75 @@ Data *load_data(FILE *in) {
 	return data;
 }
 
+
+double pow(double x, double y) {
+	double powas;
+	for(powas = 0; powas < y; powas++) {
+		x *= x;
+	}
+	return x;
+}
+
+
+double norm(double *vector1, double *vector2, unsigned int dim) {
+	unsigned int i;
+	double dist = 0;
+	for(i = 0; i < dim; i++) {
+		dist += pow(vector1[i] - vector2[i], 2);
+	}
+	return dist;
+}
+
+
 int main (int argc, char **argv) 
 {
 	FILE *in;
-	Data *data; 
+	Data *data;
+	Document *doc;
 	double elapsed_time;
 	int changed_flag = 1;
-	double **cabinets;
-	int *cabinet_sizes;
+	unsigned int ncabs;
+	//double **cabinets;
+	//int *cabinet_sizes;
 	int i = 0;
 	int j = 0;
 	int k = 0;
+	int target_cabinet;
+	int current_cabinet;
+	double current_sum;
+	double sum;
 	
-	if(argc != 2)
+	if(argc < 1 || argc > 3)
 	{
 		printf("[argc] Incorrect Number of arguments.\n");
 		exit(EXIT_FAILURE); 
 	}
+
+
+	/* process file... */
 	if((in = fopen(argv[1], "r")) == NULL) {
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE); 
 	}
-	
-	data = load_data(in);
+	if(argc > 2) {
+		ncabs = atoi(argv[2]);
+	} else ncabs = 0;
+	data = load_data(in, ncabs);
 	fclose(in);
+	/* data loaded, file closed */
+
+	
 	//debugging
 	//printf("documents pre-processing\n");
 	//data_printDocuments(data);
 
 	//create cabinets
-	cabinets = (double **)malloc(sizeof(double*)*data->num_cabinets);
+	/*cabinets = (double **)malloc(sizeof(double*)*data->num_cabinets);
 	for(i = 0; i < data->num_cabinets; i++)
 	{
 		cabinets[i] = (double *)calloc(data->num_subjects, sizeof(double));
 	}
-	cabinet_sizes = (int *)calloc(data->num_subjects, sizeof(int));
+	cabinet_sizes = (int *)calloc(data->num_subjects, sizeof(int));*/
 	
 	//debbuging
 	/*printf("pre-averages: \n");
@@ -238,50 +298,53 @@ int main (int argc, char **argv)
 	while (changed_flag)
 	{
 		changed_flag = 0;
-		//1st step: calculate coordinates for the cabinets
-		//using the averages of their documents
-		//for each document
+		/*1st step: calculate coordinates for the cabinets
+		 *using the averages of their documents
+		 *for each document*/
 		for(i = 0; i < data->num_documents; i++)
 		{
-			//for each subject
+			/*for each subject*/
 			for(j = 0; j < data->num_subjects; j++)
 			{
-				Document *doc = data->documents[i];
-				//sum the score to the cabinet
-				cabinets[doc->cabinet][j] += doc->scores[j];
-				cabinet_sizes[doc->cabinet]++;
+				doc = data->documents[i];
+				/*sum the score to the cabinet*/
+				data->cabinets[doc->cabinet]->average[j] += doc->scores[j];
+				data->cabinets[doc->cabinet]->size++;
+				//cabinets[doc->cabinet][j] += doc->scores[j];
+				//cabinet_sizes[doc->cabinet]++;
 			}
 		}
 		for(i = 0; i < data->num_cabinets; i++)
 		{
 			for(j = 0; j < data->num_subjects; j++)
 			{
-				//this step completes the calculation of the average
-				cabinets[i][j] = cabinets[i][j]/cabinet_sizes[i];
+				/*this step completes the calculation of the average*/
+				data->cabinets[i]->average[j] /= data->cabinets[i]->size;
+				//cabinets[i][j] = cabinets[i][j]/cabinet_sizes[i];
 			}
 		}
 		
-		//now that the cabinets have their scores calculated
-		//we calculate the distances
-		//from document to cabinet
-		//d = sum(a -b)^2 for each subject
+		/*now that the cabinets have their scores calculated
+		 *we calculate the distances
+		 *from document to cabinet
+		 *d = sum(a -b)^2 for each subject*/
 		for(i = 0; i < data->num_documents ;i++)
 		{
-			double current_sum = DBL_MAX;
-			double sum = 0;
-			Document *doc = data->documents[i];
-			int target_cabinet = doc->cabinet;
-			int current_cabinet = doc->cabinet;
+			current_sum = DBL_MAX;
+			sum = 0;
+			doc = data->documents[i];
+			target_cabinet = doc->cabinet;
+			current_cabinet = doc->cabinet;
 			for(j = 0; j < data->num_cabinets; j++)
 			{
 				sum = 0;
-				//we sum all the scores for a specific subject
+				/*we sum all the scores for a specific subject*/
 				for(k = 0; k < data->num_subjects; k++)
 				{
-					sum += pow(cabinets[j][k]-doc->scores[k],2);
+					sum += pow(data->cabinets[j]->average[k] - doc->scores[k],2);
 					//printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
 				}
-				//we check if the sum is smaller then the current_sum
+				/*we check if the sum is smaller then the current_sum*/
 				
 				if(sum < current_sum)
 				{
@@ -295,18 +358,18 @@ int main (int argc, char **argv)
 				changed_flag = 1;
 			}
 		}
-		//prepare next iteration
+		/*prepare next iteration*/
 		for(i = 0; i < data->num_cabinets; i++)
 		{
-			//for each subject
+			/*for each subject*/
 			for(j = 0; j < data->num_subjects; j++)
 			{
-				cabinets[i][j] = 0;
-				cabinet_sizes[i] = 0;
+				data->cabinets[i]->average[j] = 0;
+				data->cabinets[i]->size = 0;
 			}
 		}
 	}
-	//printf("documents post-processing\n");
+	/*printf("documents post-processing\n");*/
 	data_printDocuments(data);
 	freeData(data);
 	return 0;

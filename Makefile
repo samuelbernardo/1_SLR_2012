@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -Wall -pedantic
+CFLAGS = -g -pg -Wall -pedantic
 
 
 recompile: clean compile
@@ -16,6 +16,9 @@ val:
 
 fullval:
 	valgrind --leak-check=full --show-reachable=yes ./docs-serial sampleDocInstances/ex10-2d.in
+
+profile:
+	
 
 all: recompile test
 
