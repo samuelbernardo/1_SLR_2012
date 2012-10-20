@@ -243,10 +243,12 @@ double norm(double *vector1, double *vector2, unsigned int dim) {
 void compute_averages(Data *data) {
 	unsigned int i, j, k;
 	for(i = 0; i < data->num_cabinets; i++) {
+		/* reset cabinet */
 		for(k = 0; k < data->num_subjects; k++) {
 			data->cabinets[i]->average[k] = 0;
-			data->cabinets[i]->ndocs = 0;
 		}
+		data->cabinets[i]->ndocs = 0;
+		/* compute averages for cabinet */
 		for(j = 0; j < data->num_documents; j++) {
 			if(data->documents[j]->cabinet == i) {
 				for(k = 0; k < data->num_subjects; k++) {
@@ -261,14 +263,17 @@ void compute_averages(Data *data) {
 	}
 }
 
-char move_documents(Data *data) {
+int move_documents(Data *data) {
 	unsigned int i, j;
 	double distance, newdist;
-	char changed_flag = 0;
+	int changed_flag = 0;
+	/* for each document compute distance */
 	for(i = 0; i < data->num_documents; i++) {
 		distance = norm(data->documents[i]->scores, data->cabinets[data->documents[i]->cabinet]->average, data->num_subjects);
+		/* to each cabinet */
 		for(j = 0; j < data->num_cabinets; j++) {
 			if(j == data->documents[i]->cabinet) continue;
+			/* place on closest cabinet */
 			if((newdist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects)) < distance) {
 				data->documents[i]->cabinet = j;
 				distance = newdist;
