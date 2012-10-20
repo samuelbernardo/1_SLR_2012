@@ -16,6 +16,9 @@
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
 
+// set 0 to run debug printf
+#define _TEST_ 1
+
 
 /* Document class */
 typedef struct document {
@@ -195,11 +198,14 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	fscanf(in, "%u\n", &num_cabinets);
 	fscanf(in, "%u\n", &num_documents);
 	fscanf(in, "%u\n", &num_subjects);
+#if !_TEST_
+				printf("cabinets = %d\tdocuments = %d\tsubjects = %d\n", num_cabinets, num_documents, num_subjects);
+#endif
 	data = newData(num_cabinets, num_documents, num_subjects);
 	while(fgets(line, BUFFER_SIZE, in) != NULL) {
 		/*get document identifier*/
 		token = strtok(line, DELIMS);
-		id_temp = atoi(token);
+		id_temp = strtol(token,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(data, document, id_temp);
 		/*get subjects and add them to double average*/
@@ -207,6 +213,9 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 		{
 			token = strtok(NULL, DELIMS);
 			document_setScore(document, strtod(token,NULL), i);
+#if !_TEST_
+			printf("document.subject[%d] = %f\n", i, document->scores[i]);
+#endif
 		}
 	}
 	return data;
@@ -263,7 +272,7 @@ int main (int argc, char **argv)
 		exit(EXIT_FAILURE); 
 	}
 	if(argc > 2) {
-		ncabs = atoi(argv[2]);
+		ncabs = strtol(argv[2],NULL,10);
 	} else ncabs = 0;
 	data = load_data(in, ncabs);
 	fclose(in);
@@ -314,12 +323,18 @@ int main (int argc, char **argv)
 				//cabinet_sizes[doc->cabinet]++;
 			}
 		}
+#if !_TEST_
+				printf("\nthis step completes the calculation of the average\n");
+#endif
 		for(i = 0; i < data->num_cabinets; i++)
 		{
 			for(j = 0; j < data->num_subjects; j++)
 			{
 				/*this step completes the calculation of the average*/
 				data->cabinets[i]->average[j] /= data->cabinets[i]->size;
+#if !_TEST_
+				printf("cabinet[%d]average[%d] = %f\n", i, j, data->cabinets[i]->average[j]);
+#endif
 				//cabinets[i][j] = cabinets[i][j]/cabinet_sizes[i];
 			}
 		}
@@ -342,7 +357,9 @@ int main (int argc, char **argv)
 				for(k = 0; k < data->num_subjects; k++)
 				{
 					sum += pow(data->cabinets[j]->average[k] - doc->scores[k],2);
-					//printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
+#if !_TEST_
+					printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
+#endif
 				}
 				/*we check if the sum is smaller then the current_sum*/
 				
