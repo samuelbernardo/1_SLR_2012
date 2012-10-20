@@ -99,20 +99,20 @@ void removeDocument(Cabinet * cab, Document *doc)
 	{
 		return;
 	}
-	
+
 }*/
 
 /* --- */
 /* Cabinet class */
 typedef struct cabinet {
-	unsigned int size;
+	unsigned int ndocs;
 	double *average;
 } Cabinet;
 
-Cabinet *newCabinet(unsigned int size) {
+Cabinet *newCabinet(unsigned int num_subjects) {
 	Cabinet *cab = (Cabinet*) malloc(sizeof(Cabinet));
-	cab->size = size;
-	cab->average = (double*) calloc(size, sizeof(double));
+	cab->ndocs = 0;
+	cab->average = (double*) calloc(num_subjects, sizeof(double));
 	return cab;
 }
 
@@ -232,14 +232,59 @@ double norm(double *vector1, double *vector2, unsigned int dim) {
 }
 
 
-int main (int argc, char **argv) 
-{
-	FILE *in;
-	Data *data;
+void compute_averages(Data *data) {
+	unsigned int i, j, k;
+	for(i = 0; i < data->num_cabinets; i++) {
+		for(k = 0; k < data->num_subjects; k++) {
+			data->cabinets[i]->average[k] = 0;
+			data->cabinets[i]->ndocs = 0;
+		}
+		for(j = 0; j < data->num_documents; j++) {
+			if(data->documents[j]->cabinet == i) {
+				for(k = 0; k < data->num_subjects; k++) {
+					data->cabinets[i]->average[k] += data->documents[j]->scores[k];
+				}
+				data->cabinets[i]->ndocs++;
+			}
+		}
+		for(k = 0; k < data->num_subjects; k++) {
+			data->cabinets[i]->average[k] /= data->cabinets[i]->ndocs;
+		}
+	}
+}
+
+char move_documents(Data *data) {
+	unsigned int i, j;
+	double distance, newdist;
+	char changed_flag = 0;
+	for(i = 0; i < data->num_documents; i++) {
+		distance = norm(data->documents[i]->scores, data->cabinets[data->documents[i]->cabinet]->average, data->num_subjects);
+		for(j = 0; j < data->num_cabinets; j++) {
+			if(j == data->documents[i]->cabinet) continue;
+			if((newdist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects)) < distance) {
+				data->documents[i]->cabinet = j;
+				distance = newdist;
+				changed_flag = 1;
+			}
+		}
+	}
+	return changed_flag;
+}
+
+
+void algorithm(Data *data) {
+	do {
+		compute_averages(data);
+	} while(move_documents(data));
+}
+
+
+
+
+void luis_code(Data *data) {
 	Document *doc;
 	double elapsed_time;
 	int changed_flag = 1;
-	unsigned int ncabs;
 	//double **cabinets;
 	//int *cabinet_sizes;
 	int i = 0;
@@ -249,51 +294,31 @@ int main (int argc, char **argv)
 	int current_cabinet;
 	double current_sum;
 	double sum;
-	
-	if(argc < 1 || argc > 3)
-	{
-		printf("[argc] Incorrect Number of arguments.\n");
-		exit(EXIT_FAILURE); 
-	}
 
-
-	/* process file... */
-	if((in = fopen(argv[1], "r")) == NULL) {
-		printf("[fopen-read] Cannot open file to read.\n");
-		exit(EXIT_FAILURE); 
-	}
-	if(argc > 2) {
-		ncabs = atoi(argv[2]);
-	} else ncabs = 0;
-	data = load_data(in, ncabs);
-	fclose(in);
-	/* data loaded, file closed */
-
-	
 	//debugging
 	//printf("documents pre-processing\n");
 	//data_printDocuments(data);
 
 	//create cabinets
 	/*cabinets = (double **)malloc(sizeof(double*)*data->num_cabinets);
-	for(i = 0; i < data->num_cabinets; i++)
-	{
-		cabinets[i] = (double *)calloc(data->num_subjects, sizeof(double));
-	}
-	cabinet_sizes = (int *)calloc(data->num_subjects, sizeof(int));*/
-	
+		for(i = 0; i < data->num_cabinets; i++)
+		{
+			cabinets[i] = (double *)calloc(data->num_subjects, sizeof(double));
+		}
+		cabinet_sizes = (int *)calloc(data->num_subjects, sizeof(int));*/
+
 	//debbuging
 	/*printf("pre-averages: \n");
-	for(i = 0; i < data->num_cabinets; i++)
-	{
-		printf("cabinet %d: ", i);
-		for(j = 0; j < data->num_subjects; j++)
+		for(i = 0; i < data->num_cabinets; i++)
 		{
-			printf("%f ",cabinets[i][j]);
-		}
-		printf("\n");
-	}*/
-	
+			printf("cabinet %d: ", i);
+			for(j = 0; j < data->num_subjects; j++)
+			{
+				printf("%f ",cabinets[i][j]);
+			}
+			printf("\n");
+		}*/
+
 	//main cycle stops when a document has not changed cabinets
 	while (changed_flag)
 	{
@@ -309,7 +334,7 @@ int main (int argc, char **argv)
 				doc = data->documents[i];
 				/*sum the score to the cabinet*/
 				data->cabinets[doc->cabinet]->average[j] += doc->scores[j];
-				data->cabinets[doc->cabinet]->size++;
+				data->cabinets[doc->cabinet]->ndocs++;
 				//cabinets[doc->cabinet][j] += doc->scores[j];
 				//cabinet_sizes[doc->cabinet]++;
 			}
@@ -319,11 +344,11 @@ int main (int argc, char **argv)
 			for(j = 0; j < data->num_subjects; j++)
 			{
 				/*this step completes the calculation of the average*/
-				data->cabinets[i]->average[j] /= data->cabinets[i]->size;
+				data->cabinets[i]->average[j] /= data->cabinets[i]->ndocs;
 				//cabinets[i][j] = cabinets[i][j]/cabinet_sizes[i];
 			}
 		}
-		
+
 		/*now that the cabinets have their scores calculated
 		 *we calculate the distances
 		 *from document to cabinet
@@ -345,7 +370,7 @@ int main (int argc, char **argv)
 					//printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
 				}
 				/*we check if the sum is smaller then the current_sum*/
-				
+
 				if(sum < current_sum)
 				{
 					current_sum = sum;
@@ -365,10 +390,42 @@ int main (int argc, char **argv)
 			for(j = 0; j < data->num_subjects; j++)
 			{
 				data->cabinets[i]->average[j] = 0;
-				data->cabinets[i]->size = 0;
+				data->cabinets[i]->ndocs = 0;
 			}
 		}
 	}
+}
+
+
+
+int main (int argc, char **argv)
+{
+	FILE *in;
+	Data *data;
+	unsigned int ncabs;
+
+	if(argc < 1 || argc > 3)
+	{
+		printf("[argc] Incorrect Number of arguments.\n");
+		exit(EXIT_FAILURE);
+	}
+
+
+	/* process file... */
+	if((in = fopen(argv[1], "r")) == NULL) {
+		printf("[fopen-read] Cannot open file to read.\n");
+		exit(EXIT_FAILURE);
+	}
+	if(argc > 2) {
+		ncabs = atoi(argv[2]);
+	} else ncabs = 0;
+	data = load_data(in, ncabs);
+	fclose(in);
+	/* data loaded, file closed */
+
+	luis_code(data);
+	//algorithm(data);
+
 	/*printf("documents post-processing\n");*/
 	data_printDocuments(data);
 	freeData(data);
