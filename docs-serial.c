@@ -16,6 +16,8 @@
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
 
+// set 0 to run debug printf
+#define _TEST_ 1
 
 /* Document class */
 typedef struct document {
@@ -195,11 +197,14 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	fscanf(in, "%u\n", &num_cabinets);
 	fscanf(in, "%u\n", &num_documents);
 	fscanf(in, "%u\n", &num_subjects);
+#if !_TEST_
+				printf("cabinets = %d\tdocuments = %d\tsubjects = %d\n", num_cabinets, num_documents, num_subjects);
+#endif
 	data = newData(num_cabinets, num_documents, num_subjects);
 	while(fgets(line, BUFFER_SIZE, in) != NULL) {
 		/*get document identifier*/
 		token = strtok(line, DELIMS);
-		id_temp = atoi(token);
+		id_temp = strtol(token,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(data, document, id_temp);
 		/*get subjects and add them to double average*/
@@ -207,6 +212,9 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 		{
 			token = strtok(NULL, DELIMS);
 			document_setScore(document, strtod(token,NULL), i);
+#if !_TEST_
+			printf("document.subject[%d] = %f\n", i, document->scores[i]);
+#endif
 		}
 	}
 	return data;
@@ -281,7 +289,7 @@ void algorithm(Data *data) {
 
 
 
-void luis_code(Data *data) {
+void main_code(Data *data) {
 	Document *doc;
 	double elapsed_time;
 	int changed_flag = 1;
@@ -295,29 +303,30 @@ void luis_code(Data *data) {
 	double current_sum;
 	double sum;
 
+
 	//debugging
 	//printf("documents pre-processing\n");
 	//data_printDocuments(data);
 
 	//create cabinets
 	/*cabinets = (double **)malloc(sizeof(double*)*data->num_cabinets);
-		for(i = 0; i < data->num_cabinets; i++)
-		{
-			cabinets[i] = (double *)calloc(data->num_subjects, sizeof(double));
-		}
-		cabinet_sizes = (int *)calloc(data->num_subjects, sizeof(int));*/
+	for(i = 0; i < data->num_cabinets; i++)
+	{
+		cabinets[i] = (double *)calloc(data->num_subjects, sizeof(double));
+	}
+	cabinet_sizes = (int *)calloc(data->num_subjects, sizeof(int));*/
 
 	//debbuging
 	/*printf("pre-averages: \n");
-		for(i = 0; i < data->num_cabinets; i++)
+	for(i = 0; i < data->num_cabinets; i++)
+	{
+		printf("cabinet %d: ", i);
+		for(j = 0; j < data->num_subjects; j++)
 		{
-			printf("cabinet %d: ", i);
-			for(j = 0; j < data->num_subjects; j++)
-			{
-				printf("%f ",cabinets[i][j]);
-			}
-			printf("\n");
-		}*/
+			printf("%f ",cabinets[i][j]);
+		}
+		printf("\n");
+	}*/
 
 	//main cycle stops when a document has not changed cabinets
 	while (changed_flag)
@@ -339,12 +348,18 @@ void luis_code(Data *data) {
 				//cabinet_sizes[doc->cabinet]++;
 			}
 		}
+#if !_TEST_
+				printf("\nthis step completes the calculation of the average\n");
+#endif
 		for(i = 0; i < data->num_cabinets; i++)
 		{
 			for(j = 0; j < data->num_subjects; j++)
 			{
 				/*this step completes the calculation of the average*/
 				data->cabinets[i]->average[j] /= data->cabinets[i]->ndocs;
+#if !_TEST_
+				printf("cabinet[%d]average[%d] = %f\n", i, j, data->cabinets[i]->average[j]);
+#endif
 				//cabinets[i][j] = cabinets[i][j]/cabinet_sizes[i];
 			}
 		}
@@ -367,7 +382,9 @@ void luis_code(Data *data) {
 				for(k = 0; k < data->num_subjects; k++)
 				{
 					sum += pow(data->cabinets[j]->average[k] - doc->scores[k],2);
-					//printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
+#if !_TEST_
+					printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
+#endif
 				}
 				/*we check if the sum is smaller then the current_sum*/
 
@@ -423,7 +440,7 @@ int main (int argc, char **argv)
 	fclose(in);
 	/* data loaded, file closed */
 
-	luis_code(data);
+	main_code(data);
 	//algorithm(data);
 
 	/*printf("documents post-processing\n");*/
