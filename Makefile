@@ -27,4 +27,4 @@ profile:
 all: recompile test
 
 clean:
-	rm -f *.o *.*~ docs-serial
+	rm -f *.o *.*~ docs-serial *.out
