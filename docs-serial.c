@@ -12,12 +12,16 @@
 #include <limits.h>
 #include <float.h>
 #include <math.h>
+#include <stddef.h>
 
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
+#define LINELIM "\n"
+#define SPACELIM " "
 
 // set 0 to run debug printf
 #define _TEST_ 1
+#define _TESTAUX_ 1
 
 /* Document class */
 typedef struct document {
@@ -180,6 +184,57 @@ Document *data_getDocument(Data *data, unsigned int pos) {
 }
 /* --- */
 
+/* read tokens from file */
+char *fstrtok(in, token, delim)
+	register FILE *in;
+	register char *token;
+	register const char *delim;
+{
+	register char *spanp;
+	register int c, sc;
+	char *tok;
+	static FILE *last;
+
+	if (in == NULL && (in = last) == NULL)
+		return (NULL);
+
+	/*
+	 * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
+	 */
+cont:
+	c = fgetc(in);
+	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
+		if (c == sc)
+			goto cont;
+	}
+
+	if (c == 0) {		/* no non-delimiter characters */
+		last = NULL;
+		return (NULL);
+	}
+	tok = token;
+
+	/*
+	 * Scan token (scan for delimiters: s += strcspn(s, delim), sort of).
+	 * Note that delim must have one NUL; we stop if we see that, too.
+	 */
+	for (;;) {
+		c = fgetc(in);
+		*tok++ = c;
+		spanp = (char *)delim;
+		do {
+			if ((sc = *spanp++) == c) {
+				if (c == EOF)
+					in = NULL;
+				else
+					tok[-1] = 0;
+				last = in;
+				return (token);
+			}
+		} while (sc != 0);
+	}
+	/* NOTREACHED */
+}
 
 /* Parses the input (.in) file and creates all data according to its contents */
 Data *load_data(FILE *in, unsigned int ncabs) {
@@ -191,8 +246,7 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 
 	unsigned int id_temp = 0;
 	unsigned int i;
-	char line[BUFFER_SIZE];	
-	char *token;
+	char token[BUFFER_SIZE];
 
 	fscanf(in, "%u\n", &num_cabinets);
 	fscanf(in, "%u\n", &num_documents);
@@ -201,19 +255,22 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 				printf("cabinets = %d\tdocuments = %d\tsubjects = %d\n", num_cabinets, num_documents, num_subjects);
 #endif
 	data = newData(num_cabinets, num_documents, num_subjects);
-	while(fgets(line, BUFFER_SIZE, in) != NULL) {
+	fstrtok(in, token, DELIMS);
+	while(token != NULL) {
 		/*get document identifier*/
-		token = strtok(line, DELIMS);
 		id_temp = strtol(token,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(data, document, id_temp);
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
 		{
-			token = strtok(NULL, DELIMS);
+			fstrtok(NULL, token, DELIMS);
+#if !_TESTAUX1_
+			printf("document[%u].subject[%u] -> token %s\n", id_temp, i, token);
+#endif
 			document_setScore(document, strtod(token,NULL), i);
 #if !_TEST_
-			printf("document.subject[%d] = %f\n", i, document->scores[i]);
+			printf("document.subject[%u] = %f\n", i, document->scores[i]);
 #endif
 		}
 	}
@@ -448,8 +505,8 @@ int main (int argc, char **argv)
 	fclose(in);
 	/* data loaded, file closed */
 
-	main_code(data);
-	//algorithm(data);
+	//main_code(data);
+	algorithm(data);
 
 	/*printf("documents post-processing\n");*/
 	data_printDocuments(data);
