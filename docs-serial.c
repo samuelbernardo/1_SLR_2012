@@ -23,6 +23,7 @@
 #define _TEST_ 1
 #define _TESTAUX1_ 1
 #define _TESTAUX2_ 1
+#define __ALGORITHM_SAM__ 0
 
 /* Document class */
 typedef struct document {
@@ -373,6 +374,25 @@ void algorithm(Data *data) {
 
 
 
+#if !__ALGORITHM_SAM__
+void compute_averages2(Data *data) {
+
+}
+
+int move_documents2(Data *data) {
+
+}
+
+
+void algorithm2(Data *data) {
+	do {
+		compute_averages(data);
+	} while(move_documents(data));
+}
+#endif
+
+
+
 
 void main_code(Data *data) {
 	Document *doc;
@@ -529,7 +549,8 @@ int main (int argc, char **argv)
 	/* data loaded, file closed */
 
 	//main_code(data);
-	algorithm(data);
+	//algorithm(data);
+	algorithm2(data);
 
 	/*printf("documents post-processing\n");*/
 	data_printDocuments(data);
