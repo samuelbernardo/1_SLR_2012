@@ -346,6 +346,9 @@ void main_code(Data *data) {
 				data->cabinets[doc->cabinet]->ndocs++;
 				//cabinets[doc->cabinet][j] += doc->scores[j];
 				//cabinet_sizes[doc->cabinet]++;
+#if !_TEST_
+				printf("document[%d].cabinets[%d].average[%d] = %f", i, doc->cabinet, j, data->cabinets[doc->cabinet]->average[j]);
+#endif
 			}
 		}
 #if !_TEST_
