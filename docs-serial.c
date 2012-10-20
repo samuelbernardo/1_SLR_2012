@@ -20,8 +20,9 @@
 #define SPACELIM " "
 
 // set 0 to run debug printf
-#define _TEST_ 0
-#define _TESTAUX1_ 0
+#define _TEST_ 1
+#define _TESTAUX1_ 1
+#define _TESTAUX2_ 1
 
 /* Document class */
 typedef struct document {
@@ -204,13 +205,19 @@ char *fstrtok(in, token, delim)
 	tok = token;
 cont:
 	c = fgetc(in);
+#if !_TESTAUX2_
+			printf("in skip span: c = %d\n", c);
+#endif
 	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
 			goto cont;
 	}
-	*tok = c;
+	*tok++ = c;
+#if !_TESTAUX2_
+			printf("first char set in token: c = %d\n", c);
+#endif
 
-	if (c == 0) {		/* no non-delimiter characters */
+	if (c == EOF) {		/* no non-delimiter characters */
 		last = NULL;
 		return (NULL);
 	}
@@ -222,14 +229,22 @@ cont:
 	for (;;) {
 		c = fgetc(in);
 		*tok++ = c;
+#if !_TESTAUX2_
+			printf("next char set in token: c = %d\n", c);
+#endif
 		spanp = (char *)delim;
 		do {
+			if (c == EOF)
+				return (NULL);
 			if ((sc = *spanp++) == c) {
-				if (c == EOF)
+				if (c == 0)
 					in = NULL;
 				else
 					tok[-1] = 0;
 				last = in;
+#if !_TESTAUX2_
+				printf("ended token because was found c = %d\n", c);
+#endif
 				return (token);
 			}
 		} while (sc != 0);
@@ -247,7 +262,8 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 
 	unsigned int id_temp = 0;
 	unsigned int i;
-	char token[BUFFER_SIZE];
+	char buffer[BUFFER_SIZE];
+	char *token = buffer;
 
 	fscanf(in, "%u\n", &num_cabinets);
 	fscanf(in, "%u\n", &num_documents);
@@ -256,16 +272,20 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 				printf("cabinets = %d\tdocuments = %d\tsubjects = %d\n", num_cabinets, num_documents, num_subjects);
 #endif
 	data = newData(num_cabinets, num_documents, num_subjects);
-	fstrtok(in, token, DELIMS);
+	/*get document identifier*/
+	token = fstrtok(in, token, DELIMS);
 	while(token != NULL) {
-		/*get document identifier*/
 		id_temp = strtol(token,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(data, document, id_temp);
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
 		{
-			fstrtok(NULL, token, DELIMS);
+			token = fstrtok(NULL, token, DELIMS);
+			if(token == NULL) {
+				printf("\nload_data: found null token when searching for new subjects!\n");
+				exit(1);
+			}
 #if !_TESTAUX1_
 			printf("document[%d].subject[%d] -> token = %s\n", id_temp, i, token);
 #endif
@@ -274,6 +294,8 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 			printf("document.subject[%d] = %f\n", i, document->scores[i]);
 #endif
 		}
+		/*get document identifier*/
+		token = fstrtok(NULL, token, DELIMS);
 	}
 	return data;
 }
