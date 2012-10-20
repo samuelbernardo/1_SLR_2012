@@ -20,8 +20,8 @@
 #define SPACELIM " "
 
 // set 0 to run debug printf
-#define _TEST_ 1
-#define _TESTAUX_ 1
+#define _TEST_ 0
+#define _TESTAUX1_ 0
 
 /* Document class */
 typedef struct document {
@@ -201,18 +201,19 @@ char *fstrtok(in, token, delim)
 	/*
 	 * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
 	 */
+	tok = token;
 cont:
 	c = fgetc(in);
 	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
 			goto cont;
 	}
+	*tok = c;
 
 	if (c == 0) {		/* no non-delimiter characters */
 		last = NULL;
 		return (NULL);
 	}
-	tok = token;
 
 	/*
 	 * Scan token (scan for delimiters: s += strcspn(s, delim), sort of).
@@ -266,11 +267,11 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 		{
 			fstrtok(NULL, token, DELIMS);
 #if !_TESTAUX1_
-			printf("document[%u].subject[%u] -> token %s\n", id_temp, i, token);
+			printf("document[%d].subject[%d] -> token = %s\n", id_temp, i, token);
 #endif
 			document_setScore(document, strtod(token,NULL), i);
 #if !_TEST_
-			printf("document.subject[%u] = %f\n", i, document->scores[i]);
+			printf("document.subject[%d] = %f\n", i, document->scores[i]);
 #endif
 		}
 	}
