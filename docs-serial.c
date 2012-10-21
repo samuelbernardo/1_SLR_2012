@@ -198,6 +198,20 @@ void data_printInput(Data *data)
 	}
 }
 
+
+void data_printCabinets(Data *data)
+{
+	unsigned int i, j;
+
+	for(i=0; i < data->num_cabinets; i++) {
+		printf("Cabinet %u:", i);
+		for(j=0; j < data->num_subjects; j++)
+			printf(" %f", data->cabinets[i]->average[j]);
+		printf("\n");
+	}
+}
+
+
 Document *data_getDocument(Data *data, unsigned int pos) {
 	return data->documents[pos];
 }
@@ -597,6 +611,7 @@ int main (int argc, char **argv)
 	algorithm2(data);
 
 	/*printf("documents post-processing\n");*/
+	//data_printCabinets(data);
 	data_printDocuments(data);
 	freeData(data);
 	return 0;
