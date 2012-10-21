@@ -13,6 +13,7 @@
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
+#include <unistd.h>
 
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
@@ -23,6 +24,7 @@
 #define _TEST_ 1
 #define _TESTAUX1_ 1
 #define _TESTAUX2_ 1
+#define _TESTAUX3_ 1
 #define __ALGORITHM_SAM__ 0
 
 /* Document class */
@@ -181,6 +183,21 @@ void data_printDocuments(Data *data)
 	}
 }
 
+
+void data_printInput(Data *data)
+{
+	unsigned int i, j;
+
+	printf("%u\n%u\n%u\n", data->num_cabinets, data->num_documents, data->num_subjects);
+
+	for(i = 0; i < data->num_documents; i++) {
+		printf("%u ", data->documents[i]->id);
+		for(j=0; j < data->num_subjects; j++)
+			printf("%.1f ", data->documents[i]->scores[j]);
+		printf("\n");
+	}
+}
+
 Document *data_getDocument(Data *data, unsigned int pos) {
 	return data->documents[pos];
 }
@@ -311,11 +328,11 @@ double pow(double x, double y) {
 }
 
 
-double norm(double *vector1, double *vector2, unsigned int dim) {
+double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
 	unsigned int i;
 	double dist = 0;
-	for(i = 0; i < dim; i++) {
-		dist += pow(vector1[i] - vector2[i], 2);
+	for(i = 0; i < numSubjects; i++) {
+		dist += pow(docScores[i] - cabAverages[i], 2);
 	}
 	return dist;
 }
@@ -375,18 +392,40 @@ void algorithm(Data *data) {
 
 
 #if !__ALGORITHM_SAM__
-void compute_averages2(Data *data) {
-
-}
-
 int move_documents2(Data *data) {
-
+  unsigned int i, j;
+  double distance, newdist;
+  int changed_flag = 0;
+  /* for each document compute distance */
+  for(i = 0; i < data->num_documents; i++) {
+    distance = norm(data->documents[i]->scores, data->cabinets[data->documents[i]->cabinet]->average, data->num_subjects);
+    /* to each cabinet */
+    for(j = 0; j < data->num_cabinets; j++) {
+      if(j == data->documents[i]->cabinet) continue;
+      /* place on closest cabinet */
+      if((newdist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects)) < distance) {
+        data->documents[i]->cabinet = j;
+        distance = newdist;
+        changed_flag = 1;
+      }
+    }
+  }
+  return changed_flag;
 }
 
 
 void algorithm2(Data *data) {
+#if !_TESTAUX3_
+	unsigned int i = 0;
+#endif
+
 	do {
 		compute_averages(data);
+#if !_TESTAUX3_
+		printf("\nDEBUG AVERAGES: average calc %u\n", i);
+		data_printDocuments(data);
+		i++;
+#endif
 	} while(move_documents(data));
 }
 #endif
@@ -546,6 +585,11 @@ int main (int argc, char **argv)
 	} else ncabs = 0;
 	data = load_data(in, ncabs);
 	fclose(in);
+
+	/* test input data */
+	//data_printInput(data);
+	
+
 	/* data loaded, file closed */
 
 	//main_code(data);
@@ -557,3 +601,5 @@ int main (int argc, char **argv)
 	freeData(data);
 	return 0;
 }
+
+/* vim: set ts=2 sw=2 tw=0: */

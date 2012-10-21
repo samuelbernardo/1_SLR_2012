@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -pg -Wall -pedantic
+CFLAGS = -g -pg -Wall -pedantic -fno-pie
 
 
 recompile: clean compile
