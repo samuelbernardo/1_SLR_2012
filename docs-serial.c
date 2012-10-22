@@ -375,22 +375,48 @@ void compute_averages(Data *data) {
 	}
 }
 
+void computer_liebe(Data *data) {
+	unsigned int i, j, k;
+	for(i = 0; i < data->num_cabinets; i++) {
+		/* reset cabinet */
+		for(k = 0; k < data->num_subjects; k++) {
+			data->cabinets[i]->average[k] = 0;
+		}
+		data->cabinets[i]->ndocs = 0;
+		/* compute averages for cabinet */
+		for(j = 0; j < data->num_documents; j++) {
+			if(data->documents[j]->cabinet == i) {
+				data->cabinets[i]->ndocs++;
+				for(k = 0; k < data->num_subjects; k++) {
+					data->cabinets[i]->average[k] *= ((data->cabinets[i]->ndocs - 1) / data->cabinets[i]->ndocs);
+					data->cabinets[i]->average[k] += (data->documents[j]->scores[k] * (1 / data->cabinets[i]->ndocs));
+				}
+			}
+		}
+	}
+}
+
 int move_documents(Data *data) {
-	unsigned int i, j;
+	unsigned int i, j, newcab;
 	double distance, newdist;
-	int changed_flag = 0;
+	int doc_changed, changed_flag = 0;
 	/* for each document compute distance */
 	for(i = 0; i < data->num_documents; i++) {
+		doc_changed = 0;
 		distance = norm(data->documents[i]->scores, data->cabinets[data->documents[i]->cabinet]->average, data->num_subjects);
 		/* to each cabinet */
 		for(j = 0; j < data->num_cabinets; j++) {
 			if(j == data->documents[i]->cabinet) continue;
 			/* place on closest cabinet */
 			if((newdist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects)) < distance) {
-				data->documents[i]->cabinet = j;
+				newcab = j;
 				distance = newdist;
-				changed_flag = 1;
+				doc_changed = 1;
 			}
+		}
+		if(doc_changed) {
+			data->documents[i]->cabinet = newcab;
+			changed_flag = 1;
 		}
 	}
 	return changed_flag;
@@ -399,7 +425,8 @@ int move_documents(Data *data) {
 
 void algorithm(Data *data) {
 	do {
-		compute_averages(data);
+		computer_liebe(data);
+		//compute_averages(data);
 	} while(move_documents(data));
 }
 
