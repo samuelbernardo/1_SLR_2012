@@ -388,8 +388,8 @@ void computer_liebe(Data *data) {
 			if(data->documents[j]->cabinet == i) {
 				data->cabinets[i]->ndocs++;
 				for(k = 0; k < data->num_subjects; k++) {
-					data->cabinets[i]->average[k] *= ((data->cabinets[i]->ndocs - 1) / data->cabinets[i]->ndocs);
-					data->cabinets[i]->average[k] += (data->documents[j]->scores[k] * (1 / data->cabinets[i]->ndocs));
+					data->cabinets[i]->average[k] *= (((double) (data->cabinets[i]->ndocs - 1)) / ((double) data->cabinets[i]->ndocs));
+					data->cabinets[i]->average[k] += (((double) data->documents[j]->scores[k]) * ((double) 1 / (double) data->cabinets[i]->ndocs));
 				}
 			}
 		}
@@ -634,8 +634,8 @@ int main (int argc, char **argv)
 	/* data loaded, file closed */
 
 	//main_code(data);
-	//algorithm(data);
-	algorithm2(data);
+	algorithm(data);
+	//algorithm2(data);
 
 	/*printf("documents post-processing\n");*/
 	//data_printCabinets(data);
