@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
+CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99' -fopenmp
 
 
 recompile: clean compile
