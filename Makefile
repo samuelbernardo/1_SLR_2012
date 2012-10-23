@@ -74,4 +74,4 @@ profile:
 all: recompile test
 
 clean:
-	rm -f *.o *.*~ docs-serial *.diff val.txt *.tst 
+	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst 
