@@ -11,3 +11,6 @@
 *.la
 *.a
 /sampleDocInstances
+
+# Temporary
+docs-serial.c

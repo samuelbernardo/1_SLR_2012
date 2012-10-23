@@ -333,13 +333,13 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 }
 
 
-double pow(double x, double y) {
+/*double pow(double x, double y) {
 	double powas;
 	for(powas = 0; powas < y; powas++) {
 		x *= x;
 	}
 	return x;
-}
+}*/
 
 
 double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
@@ -370,7 +370,7 @@ void compute_averages(Data *data) {
 			}
 		}
 		for(k = 0; k < data->num_subjects; k++) {
-			data->cabinets[i]->average[k] /= data->cabinets[i]->ndocs;
+			data->cabinets[i]->average[k] /= (double)data->cabinets[i]->ndocs;
 		}
 	}
 }
@@ -397,16 +397,20 @@ void computer_liebe(Data *data) {
 }
 
 int move_documents(Data *data) {
-	unsigned int i, j, newcab;
+	unsigned int i, j, newcab, oldcab;
 	double distance, newdist;
 	int doc_changed, changed_flag = 0;
+
+	
 	/* for each document compute distance */
 	for(i = 0; i < data->num_documents; i++) {
+		oldcab = data->documents[i]->cabinet;
 		doc_changed = 0;
 		distance = norm(data->documents[i]->scores, data->cabinets[data->documents[i]->cabinet]->average, data->num_subjects);
 		/* to each cabinet */
 		for(j = 0; j < data->num_cabinets; j++) {
-			if(j == data->documents[i]->cabinet) continue;
+			//printf("doc id=%u\tcabinet id=%u\n", i, j);
+			//if(j == data->documents[i]->cabinet) continue;
 			/* place on closest cabinet */
 			if((newdist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects)) < distance) {
 				newcab = j;
@@ -416,7 +420,7 @@ int move_documents(Data *data) {
 		}
 		if(doc_changed) {
 			data->documents[i]->cabinet = newcab;
-			changed_flag = 1;
+			if(newcab != oldcab) changed_flag = 1;
 		}
 	}
 	return changed_flag;
@@ -425,8 +429,8 @@ int move_documents(Data *data) {
 
 void algorithm(Data *data) {
 	do {
-		computer_liebe(data);
-		//compute_averages(data);
+		//computer_liebe(data);
+		compute_averages(data);
 	} while(move_documents(data));
 }
 
