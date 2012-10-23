@@ -4,9 +4,11 @@ CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
 
 recompile: clean compile
 
-compile: docs-serial
+compile: docs-serial docs-omp
 
 docs-serial: docs-serial.c
+
+docs-omp: docs-omp.c
 
 ta: t1 t2 t3
 
@@ -56,4 +58,4 @@ profile:
 all: recompile test
 
 clean:
-	rm -f *.o *.*~ docs-serial *.diff val.txt *.tst *.out 
+	rm -f *.o *.*~ docs-serial *.diff val.txt *.tst 
