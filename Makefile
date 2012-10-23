@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -pg -Wall -pedantic -fno-pie
+CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
 
 
 recompile: clean compile
@@ -8,11 +8,17 @@ compile: docs-serial
 
 docs-serial: docs-serial.c
 
-test:
+ta: t1 t2 t3
+
+t1:
 	./docs-serial sampleDocInstances/ex5-1d.in > ex5-1d.tst
 	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
+
+t2:
 	./docs-serial sampleDocInstances/ex10-2d.in > ex10-2d.tst
 	diff ex10-2d.tst sampleDocInstances/ex10-2d.out > ex10-2d.diff
+
+t3:
 	./docs-serial sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
