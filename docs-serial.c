@@ -6,21 +6,20 @@
  * 64060 Ricardo André Vicente Costa Laranjeiro
  */
 
+
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <float.h>
-#include <math.h>
-#include <stddef.h>
-#include <unistd.h>
 
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
 #define LINELIM "\n"
 #define SPACELIM " "
 
-// set 0 to run debug printf
+/* set 0 to run debug printf*/
 #define _TEST_ 1
 #define _TESTAUX1_ 1
 #define _TESTAUX2_ 1
@@ -56,63 +55,6 @@ void document_setScore(Document *doc, double score, unsigned int pos)
 
 /* --- */
 
-/* Cabinet class */
-/*typedef struct {
-	Document document;
-	Document *next;
-} Element;
-
-typedef struct {
-	int id;
-	double *scores;
-	int size;
-	Element *list;
-}
-
-Cabinet *newCabinet(int id, unsigned int num_subjects)
-{
-	Cabinet *cab = (Cabinet *)malloc(sizeof(Cabinet));
-	cab->id = id;
-	cab->scores = (double *)malloc(sizeof(double)*num_subjects);
-	cab->size = 0;
-	cab->first = NULL;
-	return cab;
-}
-
-void freeCabinet(Cabinet *cab)
-{
-	int i;
-	Element *current = cab->first;
-	Element *temp;
-	free(cab->scores);
-	for(i = 0; i < cab->size; i++)
-	{
-		temp = current;
-		current = temp->next;
-		free(temp);
-	}
-	free(cab);
-}
-
-void addDocument(Cabinet * cab, Document *doc)
-{
-	Element *next = cab->first;
-	cab->first = doc;
-	cab->first->next=next;
-	cab->size++;
-}
-
-void removeDocument(Cabinet * cab, Document *doc)
-{
-	Element *current;
-	if(cab->first == NULL)
-	{
-		return;
-	}
-
-}*/
-
-/* --- */
 /* Cabinet class */
 typedef struct cabinet {
 	unsigned int ndocs;
@@ -284,6 +226,14 @@ cont:
 	/* NOTREACHED */
 }
 
+
+
+
+
+
+
+
+
 /* Parses the input (.in) file and creates all data according to its contents */
 Data *load_data(FILE *in, unsigned int ncabs) {
 	unsigned int num_cabinets;
@@ -333,12 +283,8 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 }
 
 
-double pow(double x, double y) {
-	double powas;
-	for(powas = 0; powas < y; powas++) {
-		x *= x;
-	}
-	return x;
+double square(double x) {
+	return x * x;
 }
 
 
@@ -346,7 +292,7 @@ double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
 	unsigned int i;
 	double dist = 0;
 	for(i = 0; i < numSubjects; i++) {
-		dist += pow(docScores[i] - cabAverages[i], 2);
+		dist += square(docScores[i] - cabAverages[i]);
 	}
 	return dist;
 }
@@ -375,28 +321,8 @@ void compute_averages(Data *data) {
 	}
 }
 
-void computer_liebe(Data *data) {
-	unsigned int i, j, k;
-	for(i = 0; i < data->num_cabinets; i++) {
-		/* reset cabinet */
-		for(k = 0; k < data->num_subjects; k++) {
-			data->cabinets[i]->average[k] = 0;
-		}
-		data->cabinets[i]->ndocs = 0;
-		/* compute averages for cabinet */
-		for(j = 0; j < data->num_documents; j++) {
-			if(data->documents[j]->cabinet == i) {
-				data->cabinets[i]->ndocs++;
-				for(k = 0; k < data->num_subjects; k++) {
-					data->cabinets[i]->average[k] *= (((double) (data->cabinets[i]->ndocs - 1)) / ((double) data->cabinets[i]->ndocs));
-					data->cabinets[i]->average[k] += (((double) data->documents[j]->scores[k]) * ((double) 1 / (double) data->cabinets[i]->ndocs));
-				}
-			}
-		}
-	}
-}
 
-int move_documents(Data *data) {
+int oldmove_documents(Data *data) {
 	unsigned int i, j, newcab;
 	double distance, newdist;
 	int doc_changed, changed_flag = 0;
@@ -423,10 +349,34 @@ int move_documents(Data *data) {
 }
 
 
+int move_documents(Data *data) {
+	unsigned int i, j, shorty;
+	double shortest, dist;
+	int changed = 0;
+	/* for each document, compute the distance to the averages
+	 * of each cabinet and move the
+	 * document to the cabinet with shorter distance; */
+	for(i = 0; i < data->num_documents; i++) {
+		shortest = DBL_MAX;
+		for(j = 0; j < data->num_cabinets; j++) {
+			dist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects);
+			if(dist < shortest) {
+				shortest = dist;
+				shorty = j;
+			}
+		}
+		if(shorty != data->documents[i]->cabinet) {
+			data->documents[i]->cabinet = shorty;
+			changed = 1;
+		}
+	}
+	return changed;
+}
+
+
 void algorithm(Data *data) {
 	do {
-		computer_liebe(data);
-		//compute_averages(data);
+		compute_averages(data);
 	} while(move_documents(data));
 }
 
@@ -476,10 +426,7 @@ void algorithm2(Data *data) {
 
 void main_code(Data *data) {
 	Document *doc;
-	double elapsed_time;
 	int changed_flag = 1;
-	//double **cabinets;
-	//int *cabinet_sizes;
 	int i = 0;
 	int j = 0;
 	int k = 0;
@@ -489,31 +436,6 @@ void main_code(Data *data) {
 	double sum;
 
 
-	//debugging
-	//printf("documents pre-processing\n");
-	//data_printDocuments(data);
-
-	//create cabinets
-	/*cabinets = (double **)malloc(sizeof(double*)*data->num_cabinets);
-	for(i = 0; i < data->num_cabinets; i++)
-	{
-		cabinets[i] = (double *)calloc(data->num_subjects, sizeof(double));
-	}
-	cabinet_sizes = (int *)calloc(data->num_subjects, sizeof(int));*/
-
-	//debbuging
-	/*printf("pre-averages: \n");
-	for(i = 0; i < data->num_cabinets; i++)
-	{
-		printf("cabinet %d: ", i);
-		for(j = 0; j < data->num_subjects; j++)
-		{
-			printf("%f ",cabinets[i][j]);
-		}
-		printf("\n");
-	}*/
-
-	//main cycle stops when a document has not changed cabinets
 	while (changed_flag)
 	{
 		changed_flag = 0;
@@ -529,8 +451,6 @@ void main_code(Data *data) {
 				/*sum the score to the cabinet*/
 				data->cabinets[doc->cabinet]->average[j] += doc->scores[j];
 				data->cabinets[doc->cabinet]->ndocs++;
-				//cabinets[doc->cabinet][j] += doc->scores[j];
-				//cabinet_sizes[doc->cabinet]++;
 #if !_TEST_
 				printf("document[%d].cabinets[%d].average[%d] = %f", i, doc->cabinet, j, data->cabinets[doc->cabinet]->average[j]);
 #endif
@@ -548,7 +468,6 @@ void main_code(Data *data) {
 #if !_TEST_
 				printf("cabinet[%d]average[%d] = %f\n", i, j, data->cabinets[i]->average[j]);
 #endif
-				//cabinets[i][j] = cabinets[i][j]/cabinet_sizes[i];
 			}
 		}
 
@@ -569,7 +488,7 @@ void main_code(Data *data) {
 				/*we sum all the scores for a specific subject*/
 				for(k = 0; k < data->num_subjects; k++)
 				{
-					sum += pow(data->cabinets[j]->average[k] - doc->scores[k],2);
+					sum += square(data->cabinets[j]->average[k] - doc->scores[k]);
 #if !_TEST_
 					printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
 #endif
@@ -628,17 +547,17 @@ int main (int argc, char **argv)
 	fclose(in);
 
 	/* test input data */
-	//data_printInput(data);
+	/*data_printInput(data);*/
 	
 
 	/* data loaded, file closed */
 
-	//main_code(data);
+	/*main_code(data);*/
 	algorithm(data);
-	//algorithm2(data);
+	/*algorithm2(data);*/
 
-	/*printf("documents post-processing\n");*/
-	//data_printCabinets(data);
+	/*printf("documents post-processing\n");
+	data_printCabinets(data);*/
 	data_printDocuments(data);
 	freeData(data);
 	return 0;
