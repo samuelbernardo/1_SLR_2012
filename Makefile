@@ -10,7 +10,11 @@ docs-serial: docs-serial.c
 
 docs-omp: docs-omp.c
 
-ta: t1 t2 t3
+ta: ts tp
+
+ts: t1 t2 t3
+
+tp: tp1 tp2 tp3
 
 t1: compile
 	./docs-serial sampleDocInstances/ex5-1d.in > ex5-1d.tst
@@ -22,6 +26,18 @@ t2: compile
 
 t3: compile
 	./docs-serial sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
+	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
+
+tp1: compile
+	./docs-omp sampleDocInstances/ex5-1d.in > ex5-1d.tst
+	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
+
+tp2: compile
+	./docs-omp sampleDocInstances/ex10-2d.in > ex10-2d.tst
+	diff ex10-2d.tst sampleDocInstances/ex10-2d.out > ex10-2d.diff
+
+tp3: compile
+	./docs-omp sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 testbig: compile
