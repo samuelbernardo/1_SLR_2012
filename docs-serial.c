@@ -13,6 +13,7 @@
 #include <string.h>
 #include <limits.h>
 #include <float.h>
+#include <time.h>
 
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
@@ -179,17 +180,11 @@ char *fstrtok(in, token, delim)
 	tok = token;
 cont:
 	c = fgetc(in);
-#if !_TESTAUX2_
-			printf("in skip span: c = %d\n", c);
-#endif
 	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
 			goto cont;
 	}
 	*tok++ = c;
-#if !_TESTAUX2_
-			printf("first char set in token: c = %d\n", c);
-#endif
 
 	if (c == EOF) {		/* no non-delimiter characters */
 		last = NULL;
@@ -203,9 +198,6 @@ cont:
 	for (;;) {
 		c = fgetc(in);
 		*tok++ = c;
-#if !_TESTAUX2_
-			printf("next char set in token: c = %d\n", c);
-#endif
 		spanp = (char *)delim;
 		do {
 			if (c == EOF)
@@ -216,9 +208,6 @@ cont:
 				else
 					tok[-1] = 0;
 				last = in;
-#if !_TESTAUX2_
-				printf("ended token because was found c = %d\n", c);
-#endif
 				return (token);
 			}
 		} while (sc != 0);
@@ -250,9 +239,6 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	fscanf(in, "%u\n", &num_cabinets);
 	fscanf(in, "%u\n", &num_documents);
 	fscanf(in, "%u\n", &num_subjects);
-#if !_TEST_
-				printf("cabinets = %d\tdocuments = %d\tsubjects = %d\n", num_cabinets, num_documents, num_subjects);
-#endif
 	data = newData(num_cabinets, num_documents, num_subjects);
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
@@ -268,13 +254,7 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 				printf("\nload_data: found null token when searching for new subjects!\n");
 				exit(1);
 			}
-#if !_TESTAUX1_
-			printf("document[%d].subject[%d] -> token = %s\n", id_temp, i, token);
-#endif
 			document_setScore(document, strtod(token,NULL), i);
-#if !_TEST_
-			printf("document.subject[%d] = %f\n", i, document->scores[i]);
-#endif
 		}
 		/*get document identifier*/
 		token = fstrtok(NULL, token, DELIMS);
@@ -322,33 +302,6 @@ void compute_averages(Data *data) {
 }
 
 
-int oldmove_documents(Data *data) {
-	unsigned int i, j, newcab;
-	double distance, newdist;
-	int doc_changed, changed_flag = 0;
-	/* for each document compute distance */
-	for(i = 0; i < data->num_documents; i++) {
-		doc_changed = 0;
-		distance = norm(data->documents[i]->scores, data->cabinets[data->documents[i]->cabinet]->average, data->num_subjects);
-		/* to each cabinet */
-		for(j = 0; j < data->num_cabinets; j++) {
-			if(j == data->documents[i]->cabinet) continue;
-			/* place on closest cabinet */
-			if((newdist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects)) < distance) {
-				newcab = j;
-				distance = newdist;
-				doc_changed = 1;
-			}
-		}
-		if(doc_changed) {
-			data->documents[i]->cabinet = newcab;
-			changed_flag = 1;
-		}
-	}
-	return changed_flag;
-}
-
-
 int move_documents(Data *data) {
 	unsigned int i, j, shorty;
 	double shortest, dist;
@@ -382,152 +335,12 @@ void algorithm(Data *data) {
 
 
 
-#if !__ALGORITHM_SAM__
-int move_documents2(Data *data) {
-  unsigned int i, j;
-  double distance, newdist;
-  int changed_flag = 0;
-  /* for each document compute distance */
-  for(i = 0; i < data->num_documents; i++) {
-    distance = norm(data->documents[i]->scores, data->cabinets[data->documents[i]->cabinet]->average, data->num_subjects);
-    /* to each cabinet */
-    for(j = 0; j < data->num_cabinets; j++) {
-      if(j == data->documents[i]->cabinet) continue;
-      /* place on closest cabinet */
-      if((newdist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects)) < distance) {
-        data->documents[i]->cabinet = j;
-        distance = newdist;
-        changed_flag = 1;
-      }
-    }
-  }
-  return changed_flag;
-}
-
-
-void algorithm2(Data *data) {
-#if !_TESTAUX3_
-	unsigned int i = 0;
-#endif
-
-	do {
-		compute_averages(data);
-#if !_TESTAUX3_
-		printf("\nDEBUG AVERAGES: average calc %u\n", i);
-		data_printDocuments(data);
-		i++;
-#endif
-	} while(move_documents(data));
-}
-#endif
-
-
-
-
-void main_code(Data *data) {
-	Document *doc;
-	int changed_flag = 1;
-	int i = 0;
-	int j = 0;
-	int k = 0;
-	int target_cabinet;
-	int current_cabinet;
-	double current_sum;
-	double sum;
-
-
-	while (changed_flag)
-	{
-		changed_flag = 0;
-		/*1st step: calculate coordinates for the cabinets
-		 *using the averages of their documents
-		 *for each document*/
-		for(i = 0; i < data->num_documents; i++)
-		{
-			/*for each subject*/
-			for(j = 0; j < data->num_subjects; j++)
-			{
-				doc = data->documents[i];
-				/*sum the score to the cabinet*/
-				data->cabinets[doc->cabinet]->average[j] += doc->scores[j];
-				data->cabinets[doc->cabinet]->ndocs++;
-#if !_TEST_
-				printf("document[%d].cabinets[%d].average[%d] = %f", i, doc->cabinet, j, data->cabinets[doc->cabinet]->average[j]);
-#endif
-			}
-		}
-#if !_TEST_
-				printf("\nthis step completes the calculation of the average\n");
-#endif
-		for(i = 0; i < data->num_cabinets; i++)
-		{
-			for(j = 0; j < data->num_subjects; j++)
-			{
-				/*this step completes the calculation of the average*/
-				data->cabinets[i]->average[j] /= data->cabinets[i]->ndocs;
-#if !_TEST_
-				printf("cabinet[%d]average[%d] = %f\n", i, j, data->cabinets[i]->average[j]);
-#endif
-			}
-		}
-
-		/*now that the cabinets have their scores calculated
-		 *we calculate the distances
-		 *from document to cabinet
-		 *d = sum(a -b)^2 for each subject*/
-		for(i = 0; i < data->num_documents ;i++)
-		{
-			current_sum = DBL_MAX;
-			sum = 0;
-			doc = data->documents[i];
-			target_cabinet = doc->cabinet;
-			current_cabinet = doc->cabinet;
-			for(j = 0; j < data->num_cabinets; j++)
-			{
-				sum = 0;
-				/*we sum all the scores for a specific subject*/
-				for(k = 0; k < data->num_subjects; k++)
-				{
-					sum += square(data->cabinets[j]->average[k] - doc->scores[k]);
-#if !_TEST_
-					printf("doc[%d],cab[%d],sub[%d] : %f\n",i,j,k,sum);
-#endif
-				}
-				/*we check if the sum is smaller then the current_sum*/
-
-				if(sum < current_sum)
-				{
-					current_sum = sum;
-					current_cabinet = j;
-				}
-			}
-			if(current_cabinet != target_cabinet)
-			{
-				doc->cabinet = current_cabinet;
-				changed_flag = 1;
-			}
-		}
-		/*prepare next iteration*/
-		for(i = 0; i < data->num_cabinets; i++)
-		{
-			/*for each subject*/
-			for(j = 0; j < data->num_subjects; j++)
-			{
-				data->cabinets[i]->average[j] = 0;
-				data->cabinets[i]->ndocs = 0;
-			}
-		}
-	}
-}
-
-
-
 int main (int argc, char **argv)
 {
 	FILE *in;
 	Data *data;
 	unsigned int ncabs;
-
+	clock_t time;
 	if(argc < 1 || argc > 3)
 	{
 		printf("[argc] Incorrect Number of arguments.\n");
@@ -545,20 +358,14 @@ int main (int argc, char **argv)
 	} else ncabs = 0;
 	data = load_data(in, ncabs);
 	fclose(in);
-
-	/* test input data */
-	/*data_printInput(data);*/
-	
-
 	/* data loaded, file closed */
-
-	/*main_code(data);*/
+	time = clock();
 	algorithm(data);
-	/*algorithm2(data);*/
-
+	time = clock() - time;
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
 	data_printDocuments(data);
+	printf("Elapsed time: %g seconds\n", ((double) time) / CLOCKS_PER_SEC);
 	freeData(data);
 	return 0;
 }
