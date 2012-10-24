@@ -281,7 +281,7 @@ double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
 
 void compute_averages(Data *data) {
 	unsigned int i, j, k;
-#pragma omp parallel for
+#pragma omp parallel for private(i,j,k)
 	for(i = 0; i < data->num_cabinets; i++) {
 		/* reset cabinet */
 		for(k = 0; k < data->num_subjects; k++) {
@@ -342,7 +342,7 @@ int main (int argc, char **argv)
 	FILE *in, *out;
 	Data *data;
 	unsigned int ncabs;
-	clock_t time;
+	double time;
 	if(argc < 1 || argc > 3)
 	{
 		printf("[argc] Incorrect Number of arguments.\n");
@@ -361,9 +361,9 @@ int main (int argc, char **argv)
 	data = load_data(in, ncabs);
 	fclose(in);
 	/* data loaded, file closed */
-	time = clock();
+	time = omp_get_wtime();
 	algorithm(data);
-	time = clock() - time;
+	time = omp_get_wtime() - time;
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
 	if((out = fopen("runtimes.log", "a")) == NULL) {
@@ -371,7 +371,7 @@ int main (int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 	data_printDocuments(data);
-	fprintf(out, "Elapsed time: %g seconds\n", ((double) time) / CLOCKS_PER_SEC);
+	fprintf(out, "Elapsed time: %g seconds\n", time);
 	fclose(out);
 	freeData(data);
 	return 0;
