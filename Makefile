@@ -6,12 +6,17 @@ recompile: clean compile
 
 compile: docs-serial docs-omp
 
-kinst: docs-serial docs-omp
-	kinst-ompp $(CC) $(CFLAGS)
+kinst: docs-serial-kinst docs-omp-kinst
 
 docs-serial: docs-serial.c
 
 docs-omp: docs-omp.c
+
+docs-serial-kinst: docs-serial.c
+	kinst-ompp $(CC) $(CFLAGS) $^ -o $@
+
+docs-omp-kinst: docs-omp.c
+	kinst-ompp $(CC) $(CFLAGS) $^ -o $@
 
 ta: ts tp
 
