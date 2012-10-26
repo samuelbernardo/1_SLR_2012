@@ -28,6 +28,7 @@
 #define _TESTAUX3_ 1
 #define __ALGORITHM_SAM__ 0
 
+
 /* Document class */
 typedef struct document {
 	int id;
@@ -83,6 +84,9 @@ typedef struct data {
 	Document **documents;
 	Cabinet **cabinets;
 } Data;
+
+
+Data *data;
 
 Data *newData(unsigned int num_cabinets, unsigned int num_documents, unsigned int num_subjects) 
 {
@@ -341,7 +345,7 @@ void algorithm(Data *data) {
 int main (int argc, char **argv)
 {
 	FILE *in, *out;
-	Data *data;
+	//Data *data;
 	unsigned int ncabs;
 	double time;
 	if(argc < 1 || argc > 3)
