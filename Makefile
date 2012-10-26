@@ -6,6 +6,9 @@ recompile: clean compile
 
 compile: docs-serial docs-omp
 
+kinst: docs-serial docs-omp
+	kinst-ompp $(CC) $(CFLAGS)
+
 docs-serial: docs-serial.c
 
 docs-omp: docs-omp.c
