@@ -311,6 +311,7 @@ int move_documents(Data *data) {
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
 	 * document to the cabinet with shorter distance; */
+#pragma omp parallel for private(i,j,shorty,shortest,dist)
 	for(i = 0; i < data->num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < data->num_cabinets; j++) {

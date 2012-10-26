@@ -6,7 +6,7 @@ recompile: clean compile
 
 compile: docs-serial docs-omp
 
-kinst: docs-serial-kinst docs-omp-kinst
+kinst: docs-serial-kinst docs-omp-kinst ren
 
 docs-serial: docs-serial.c
 
@@ -17,6 +17,10 @@ docs-serial-kinst: docs-serial.c
 
 docs-omp-kinst: docs-omp.c
 	kinst-ompp $(CC) $(CFLAGS) $^ -o $@
+
+ren:
+	mv docs-serial-kinst docs-serial
+	mv docs-omp-kinst docs-omp
 
 ta: ts tp
 
@@ -82,4 +86,7 @@ profile:
 all: recompile test
 
 clean:
-	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst 
+	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst
+	
+clean-all:
+	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst docs-omp.c.opari.inc docs-omp.mod.c docs-serial.c.opari.inc docs-serial.mod.c ex1000-50d.in.4-0.ompp.txt ex10-2d.in.4-0.ompp.txt ex5-1d.in.4-0.ompp.txt gmon.out opari.rc opari.tab.c 
