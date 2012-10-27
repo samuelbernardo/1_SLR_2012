@@ -44,10 +44,10 @@ Document* newDocument(int id, int cabinet, unsigned int num_subjects)
 	return doc;
 }
 
-void freeDocument(Document *doc) 
+void freeDocument(volatile Document *doc) 
 {
 	free(doc->scores);
-	free(doc);
+	free((void*)doc);
 }
 
 void document_setScore(Document *doc, double score, unsigned int pos) 
@@ -70,9 +70,9 @@ Cabinet *newCabinet(unsigned int num_subjects) {
 	return cab;
 }
 
-void freeCabinet(Cabinet *cab) {
+void freeCabinet(volatile Cabinet *cab) {
 	free(cab->average);
-	free(cab);
+	free((void*)cab);
 }
 /* --- */
 /* Data class */
@@ -84,46 +84,48 @@ typedef struct data {
 	Cabinet **cabinets;
 } Data;
 
-Data *newData(unsigned int num_cabinets, unsigned int num_documents, unsigned int num_subjects) 
+unsigned int num_cabinets;
+unsigned int num_documents;
+unsigned int num_subjects;
+static volatile Document **documents;
+static volatile Cabinet **cabinets;
+
+void newData() 
 {
 	unsigned int i;
-	Data *data = (Data*) malloc(sizeof(Data));
-	data->num_cabinets = num_cabinets;
-	data->num_documents = num_documents;
-	data->num_subjects = num_subjects;
-	data->documents = (Document**) malloc(sizeof(Document*) * num_documents);
-	data->cabinets = (Cabinet**) malloc(sizeof(Cabinet*) * num_cabinets);
+	documents = (volatile Document**) malloc(sizeof(volatile Document*) * num_documents);
+	cabinets = (volatile Cabinet**) malloc(sizeof(volatile Cabinet*) * num_cabinets);
 	for(i = 0; i < num_cabinets; i++) {
-		data->cabinets[i] = newCabinet(num_subjects);
+		cabinets[i] = newCabinet(num_subjects);
 	}
-	return data;
+	return;
 }
 
-void freeData(Data *data) 
+void freeData() 
 {
 	unsigned int i;
-	for(i = 0; i < data->num_documents; i++) {
-		freeDocument(data->documents[i]);
+	for(i = 0; i < num_documents; i++) {
+		freeDocument(documents[i]);
 	}
-	for(i = 0; i < data->num_cabinets; i++) {
-		freeCabinet(data->cabinets[i]);
+	for(i = 0; i < num_cabinets; i++) {
+		freeCabinet(cabinets[i]);
 	}
-	free(data->cabinets);
-	free(data->documents);
-	free(data);
+	free(cabinets);
+	free(documents);
+	//free(data);
 }
 
-void data_setDocument(Data *data, Document *doc, unsigned int pos) 
+void data_setDocument(Document *doc, unsigned int pos) 
 {
-	data->documents[pos] = doc;
+	documents[pos] = doc;
 }
 
 
-void data_printDocuments(Data *data) 
+void data_printDocuments() 
 {
 	unsigned int i;
-	for(i = 0; i < data->num_documents; i++) {
-		printf("%u %u\n", data->documents[i]->id, data->documents[i]->cabinet);
+	for(i = 0; i < num_documents; i++) {
+		printf("%u %u\n", documents[i]->id, documents[i]->cabinet);
 	}
 }
 
@@ -132,25 +134,25 @@ void data_printInput(Data *data)
 {
 	unsigned int i, j;
 
-	printf("%u\n%u\n%u\n", data->num_cabinets, data->num_documents, data->num_subjects);
+	printf("%u\n%u\n%u\n", num_cabinets, num_documents, num_subjects);
 
-	for(i = 0; i < data->num_documents; i++) {
-		printf("%u ", data->documents[i]->id);
-		for(j=0; j < data->num_subjects; j++)
-			printf("%.1f ", data->documents[i]->scores[j]);
+	for(i = 0; i < num_documents; i++) {
+		printf("%u ", documents[i]->id);
+		for(j=0; j < num_subjects; j++)
+			printf("%.1f ", documents[i]->scores[j]);
 		printf("\n");
 	}
 }
 
 
-void data_printCabinets(Data *data)
+void data_printCabinets()
 {
 	unsigned int i, j;
 
-	for(i=0; i < data->num_cabinets; i++) {
+	for(i=0; i < num_cabinets; i++) {
 		printf("Cabinet %u:", i);
-		for(j=0; j < data->num_subjects; j++)
-			printf(" %f", data->cabinets[i]->average[j]);
+		for(j=0; j < num_subjects; j++)
+			printf(" %f", cabinets[i]->average[j]);
 		printf("\n");
 	}
 }
@@ -163,9 +165,9 @@ Document *data_getDocument(Data *data, unsigned int pos) {
 
 /* read tokens from file */
 char *fstrtok(in, token, delim)
-register FILE *in;
-register char *token;
-register const char *delim;
+	register FILE *in;
+	register char *token;
+	register const char *delim;
 {
 	register char *spanp;
 	register int c, sc;
@@ -179,7 +181,7 @@ register const char *delim;
 	 * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
 	 */
 	tok = token;
-	cont:
+cont:
 	c = fgetc(in);
 	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
@@ -221,15 +223,12 @@ register const char *delim;
 
 
 
-
+Data *data;
 
 
 /* Parses the input (.in) file and creates all data according to its contents */
 Data *load_data(FILE *in, unsigned int ncabs) {
-	unsigned int num_cabinets;
-	unsigned int num_documents;
-	unsigned int num_subjects;
-	Data *data;
+
 	Document *document;
 
 	unsigned int id_temp = 0;
@@ -240,13 +239,13 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	fscanf(in, "%u\n", &num_cabinets);
 	fscanf(in, "%u\n", &num_documents);
 	fscanf(in, "%u\n", &num_subjects);
-	data = newData(num_cabinets, num_documents, num_subjects);
+	newData();
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
 	while(token != NULL) {
 		id_temp = strtol(token,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
-		data_setDocument(data, document, id_temp);
+		data_setDocument(document, id_temp);
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
 		{
@@ -279,53 +278,52 @@ double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
 }
 
 
-void compute_averages(Data *data) {
+void compute_averages() {
 	unsigned int i, j, k;
-	for(i = 0; i < data->num_cabinets; i++) {
+	for(i = 0; i < num_cabinets; i++) {
 		/* reset cabinet */
-		for(k = 0; k < data->num_subjects; k++) {
-			data->cabinets[i]->average[k] = 0;
+		for(k = 0; k < num_subjects; k++) {
+			cabinets[i]->average[k] = 0;
 		}
-		data->cabinets[i]->ndocs = 0;
+		cabinets[i]->ndocs = 0;
 		/* compute averages for cabinet */
-		for(j = 0; j < data->num_documents; j++) {
-			if(data->documents[j]->cabinet == i) {
-				for(k = 0; k < data->num_subjects; k++) {
-					data->cabinets[i]->average[k] += data->documents[j]->scores[k];
+		for(j = 0; j < num_documents; j++) {
+			if(documents[j]->cabinet == i) {
+				for(k = 0; k < num_subjects; k++) {
+					cabinets[i]->average[k] += documents[j]->scores[k];
 				}
-				data->cabinets[i]->ndocs++;
+				cabinets[i]->ndocs++;
 			}
 		}
-		for(k = 0; k < data->num_subjects; k++) {
-			data->cabinets[i]->average[k] /= (double)data->cabinets[i]->ndocs;
+		for(k = 0; k < num_subjects; k++) {
+			cabinets[i]->average[k] /= (double)cabinets[i]->ndocs;
 		}
 	}
 }
 
 
-int move_documents(Data *data) {
+int move_documents() {
 	unsigned int i, j, k, shorty;
-	double shortest, dist, coord;
+	double shortest, dist;
 	int changed = 0;
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
 	 * document to the cabinet with shorter distance; */
-	for(i = 0; i < data->num_documents; i++) {
+	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
-		for(j = 0; j < data->num_cabinets; j++) {
-			/*dist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects);*/
+		for(j = 0; j < num_cabinets; j++) {
+			//dist = norm(documents[i]->scores, cabinets[j]->average, num_subjects);
 			dist = 0;
-			for(k = 0; k < data->num_subjects; k++) {
-				coord = data->documents[i]->scores[k] - data->cabinets[j]->average[k];
-				dist += coord * coord;
+			for(k = 0; k < num_subjects; k++) {
+				dist += pow((documents[i]->scores[k] - cabinets[j]->average[k]), 2);
 			}
 			if(dist < shortest) {
 				shortest = dist;
 				shorty = j;
 			}
 		}
-		if(shorty != data->documents[i]->cabinet) {
-			data->documents[i]->cabinet = shorty;
+		if(shorty != documents[i]->cabinet) {
+			documents[i]->cabinet = shorty;
 			changed = 1;
 		}
 	}
@@ -333,10 +331,10 @@ int move_documents(Data *data) {
 }
 
 
-void algorithm(Data *data) {
+void algorithm() {
 	do {
-		compute_averages(data);
-	} while(move_documents(data));
+		compute_averages();
+	} while(move_documents());
 }
 
 
@@ -344,9 +342,12 @@ void algorithm(Data *data) {
 int main (int argc, char **argv)
 {
 	FILE *in, *out;
-	Data *data;
+	//Data *data;
 	unsigned int ncabs;
 	double time;
+
+	omp_set_num_threads(1);
+
 	if(argc < 1 || argc > 3)
 	{
 		printf("[argc] Incorrect Number of arguments.\n");
@@ -365,6 +366,7 @@ int main (int argc, char **argv)
 	data = load_data(in, ncabs);
 	fclose(in);
 	/* data loaded, file closed */
+	omp_set_num_threads(2);
 	time = omp_get_wtime();
 	algorithm(data);
 	time = omp_get_wtime() - time;
@@ -374,10 +376,10 @@ int main (int argc, char **argv)
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE);
 	}
-	data_printDocuments(data);
-	fprintf(out, "Elapsed time: %g seconds\n", time);
+	data_printDocuments();
+	fprintf(out, "==Serial Test== Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", argv[1], omp_get_num_procs(), time);
 	fclose(out);
-	freeData(data);
+	//freeData(data);
 	return 0;
 }
 
