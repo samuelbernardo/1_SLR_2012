@@ -1,0 +1,56 @@
+####### Caso inicial #########
+Programa em série:
+Elapsed time: 6.4671e-06 seconds
+Elapsed time: 1.68858e-05 seconds
+Elapsed time: 0.250728 seconds
+Programa em paralelo:
+Elapsed time: 0.0107979 seconds
+Elapsed time: 0.0105681 seconds
+Elapsed time: 0.707052 seconds
+
+####### Com variável global #######
+Programa em série:
+Elapsed time: 4.90248e-06 seconds
+Elapsed time: 9.71183e-06 seconds
+Elapsed time: 0.102309 seconds
+Programa em paralelo:
+Elapsed time: 0.0112564 seconds
+Elapsed time: 0.0105563 seconds
+Elapsed time: 0.0644321 seconds
+
+
+####### Com volatile #########
+Programa em série:
+Elapsed time: 5.69224e-06 seconds
+Elapsed time: 1.01523e-05 seconds
+Elapsed time: 0.0983941 seconds
+Programa em paralelo:
+Elapsed time: 0.0111771 seconds
+Elapsed time: 0.0112017 seconds
+Elapsed time: 0.0611306 seconds
+Programa em série:
+Elapsed time: 4.98164e-06 seconds
+Elapsed time: 1.00276e-05 seconds
+Elapsed time: 0.0999203 seconds
+Programa em paralelo:
+Elapsed time: 0.0105689 seconds
+Elapsed time: 0.0106657 seconds
+Elapsed time: 0.0612307 seconds
+
+####### Com static+volatile #########
+Programa em série:
+Elapsed time: 4.76651e-06 seconds
+Elapsed time: 9.6662e-06 seconds
+Elapsed time: 0.098783 seconds
+Programa em paralelo:
+Elapsed time: 0.010594 seconds
+Elapsed time: 0.0110542 seconds
+Elapsed time: 0.0608882 seconds
+Programa em série:
+Elapsed time: 5.27781e-06 seconds
+Elapsed time: 1.13184e-05 seconds
+Elapsed time: 0.0986605 seconds
+Programa em paralelo:
+Elapsed time: 0.0105666 seconds
+Elapsed time: 0.0112906 seconds
+Elapsed time: 0.0607821 seconds

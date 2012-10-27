@@ -280,7 +280,6 @@ double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
 
 void compute_averages() {
 	unsigned int i, j, k;
-#pragma omp parallel for private(i,j,k)
 	for(i = 0; i < num_cabinets; i++) {
 		/* reset cabinet */
 		for(k = 0; k < num_subjects; k++) {
@@ -310,7 +309,6 @@ int move_documents() {
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
 	 * document to the cabinet with shorter distance; */
-#pragma omp parallel for private(i,j,k,shorty,shortest,dist)
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < num_cabinets; j++) {

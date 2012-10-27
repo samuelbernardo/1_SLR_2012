@@ -89,4 +89,4 @@ clean:
 	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst
 	
 clean-all:
-	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst docs-omp.c.opari.inc docs-omp.mod.c docs-serial.c.opari.inc docs-serial.mod.c ex1000-50d.in.4-0.ompp.txt ex10-2d.in.4-0.ompp.txt ex5-1d.in.4-0.ompp.txt gmon.out opari.rc opari.tab.c 
+	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst docs-omp.c.opari.inc docs-omp.mod.c docs-serial.c.opari.inc docs-serial.mod.c ex1000-50d.in.*.ompp.txt ex10-2d.in.*.ompp.txt ex5-1d.in.*.ompp.txt gmon.out opari.rc opari.tab.c 
