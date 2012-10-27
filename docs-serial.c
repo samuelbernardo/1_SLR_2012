@@ -163,9 +163,9 @@ Document *data_getDocument(Data *data, unsigned int pos) {
 
 /* read tokens from file */
 char *fstrtok(in, token, delim)
-	register FILE *in;
-	register char *token;
-	register const char *delim;
+register FILE *in;
+register char *token;
+register const char *delim;
 {
 	register char *spanp;
 	register int c, sc;
@@ -179,7 +179,7 @@ char *fstrtok(in, token, delim)
 	 * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
 	 */
 	tok = token;
-cont:
+	cont:
 	c = fgetc(in);
 	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
@@ -304,8 +304,8 @@ void compute_averages(Data *data) {
 
 
 int move_documents(Data *data) {
-	unsigned int i, j, shorty;
-	double shortest, dist;
+	unsigned int i, j, k, shorty;
+	double shortest, dist, coord;
 	int changed = 0;
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
@@ -313,7 +313,12 @@ int move_documents(Data *data) {
 	for(i = 0; i < data->num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < data->num_cabinets; j++) {
-			dist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects);
+			/*dist = norm(data->documents[i]->scores, data->cabinets[j]->average, data->num_subjects);*/
+			dist = 0;
+			for(k = 0; k < data->num_subjects; k++) {
+				coord = data->documents[i]->scores[k] - data->cabinets[j]->average[k];
+				dist += coord * coord;
+			}
 			if(dist < shortest) {
 				shortest = dist;
 				shorty = j;

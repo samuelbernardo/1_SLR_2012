@@ -305,7 +305,7 @@ void compute_averages() {
 
 int move_documents() {
 	unsigned int i, j, k, shorty;
-	double shortest, dist;
+	double shortest, dist, coord;
 	int changed = 0;
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
@@ -317,7 +317,8 @@ int move_documents() {
 			//dist = norm(documents[i]->scores, cabinets[j]->average, num_subjects);
 			dist = 0;
 			for(k = 0; k < num_subjects; k++) {
-				dist += pow((documents[i]->scores[k] - cabinets[j]->average[k]), 2);
+				coord = documents[i]->scores[k] - cabinets[j]->average[k];
+				dist += coord * coord;
 			}
 			if(dist < shortest) {
 				shortest = dist;
