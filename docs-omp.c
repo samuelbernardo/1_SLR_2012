@@ -348,6 +348,9 @@ int main (int argc, char **argv)
 	//Data *data;
 	unsigned int ncabs;
 	double time;
+
+	//omp_set_num_threads(12);
+
 	if(argc < 1 || argc > 3)
 	{
 		printf("[argc] Incorrect Number of arguments.\n");

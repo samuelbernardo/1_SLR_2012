@@ -52,8 +52,14 @@ tp3: compile
 	./docs-omp sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
-testbig: compile
+testbig: tbs tbp
+
+tbs: compile
 	./docs-serial sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
+	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
+
+tbp: compile
+	./docs-omp sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
 	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
 
 val:
@@ -89,4 +95,4 @@ clean:
 	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst
 	
 clean-all:
-	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst docs-omp.c.opari.inc docs-omp.mod.c docs-serial.c.opari.inc docs-serial.mod.c ex1000-50d.in.*.ompp.txt ex10-2d.in.*.ompp.txt ex5-1d.in.*.ompp.txt gmon.out opari.rc opari.tab.c 
+	rm -f *.o *.*~ docs-serial docs-omp *.diff val.txt *.tst docs-omp.c.opari.inc docs-omp.mod.c docs-serial.c.opari.inc docs-serial.mod.c ex1000-50d.in.*.ompp.txt ex10-2d.in.*.ompp.txt ex5-1d.in.*.ompp.txt gmon.out opari.rc opari.tab.c ex1M-100d.in.*.ompp.txt 
