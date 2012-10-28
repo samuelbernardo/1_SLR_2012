@@ -280,24 +280,27 @@ double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
 
 void compute_averages() {
 	unsigned int i, j, k;
-#pragma omp parallel for private(i,j,k)
+	static volatile Cabinet *cabinet;
+
+#pragma omp parallel for private(i,j,k,cabinet)
 	for(i = 0; i < num_cabinets; i++) {
+		cabinet = cabinets[i];
 		/* reset cabinet */
 		for(k = 0; k < num_subjects; k++) {
-			cabinets[i]->average[k] = 0;
+			cabinet->average[k] = 0;
 		}
-		cabinets[i]->ndocs = 0;
+		cabinet->ndocs = 0;
 		/* compute averages for cabinet */
 		for(j = 0; j < num_documents; j++) {
 			if(documents[j]->cabinet == i) {
 				for(k = 0; k < num_subjects; k++) {
-					cabinets[i]->average[k] += documents[j]->scores[k];
+					cabinet->average[k] += documents[j]->scores[k];
 				}
-				cabinets[i]->ndocs++;
+				cabinet->ndocs++;
 			}
 		}
 		for(k = 0; k < num_subjects; k++) {
-			cabinets[i]->average[k] /= (double)cabinets[i]->ndocs;
+			cabinet->average[k] /= (double)cabinet->ndocs;
 		}
 	}
 }
@@ -307,17 +310,20 @@ int move_documents() {
 	unsigned int i, j, k, shorty;
 	double shortest, dist, coord;
 	int changed = 0;
+	static volatile Cabinet *cabinet;
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
 	 * document to the cabinet with shorter distance; */
-#pragma omp parallel for private(i,j,k,shorty,shortest,dist, coord)
+	 omp_set_nested(1);
+#pragma omp parallel for private(i,j,k,shorty,shortest,dist, coord, cabinet)
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < num_cabinets; j++) {
 			//dist = norm(documents[i]->scores, cabinets[j]->average, num_subjects);
 			dist = 0;
+			cabinet = cabinets[j];
 			for(k = 0; k < num_subjects; k++) {
-				coord = documents[i]->scores[k] - cabinets[j]->average[k];
+				coord = documents[i]->scores[k] - cabinet->average[k];
 				dist += coord * coord;
 			}
 			if(dist < shortest) {
@@ -349,7 +355,7 @@ int main (int argc, char **argv)
 	unsigned int ncabs;
 	double time;
 
-	//omp_set_num_threads(12);
+	//omp_set_num_threads(4);
 
 	if(argc < 1 || argc > 3)
 	{
@@ -369,7 +375,6 @@ int main (int argc, char **argv)
 	data = load_data(in, ncabs);
 	fclose(in);
 	/* data loaded, file closed */
-	omp_set_num_threads(2);
 	time = omp_get_wtime();
 	algorithm(data);
 	time = omp_get_wtime() - time;
