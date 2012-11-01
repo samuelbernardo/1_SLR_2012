@@ -282,30 +282,34 @@ void compute_averages() {
 	unsigned int i, j, k;
 	static volatile Cabinet *cabinet;
 
-#pragma omp parallel private(i,j,k,cabinet)
-{
+	omp_set_nested(1);
+
+#pragma omp for nowait private(cabinet,i,j,k)
 	for(i = 0; i < num_cabinets; i++) {
 		cabinet = cabinets[i];
 		/* reset cabinet */
 		for(k = 0; k < num_subjects; k++) {
 			cabinet->average[k] = 0;
 		}
+
 		cabinet->ndocs = 0;
+
 		/* compute averages for cabinet */
-		#pragma omp for
+	#pragma omp parallel for schedule(dynamic) collapse(2)
 		for(j = 0; j < num_documents; j++) {
-			if(documents[j]->cabinet == i) {
-				for(k = 0; k < num_subjects; k++) {
+			for(k = 0; k < num_subjects; k++) {
+				if(documents[j]->cabinet == i) {
 					cabinet->average[k] += documents[j]->scores[k];
+					if(k == num_subjects-1)
+						cabinet->ndocs++;
 				}
-				cabinet->ndocs++;
 			}
 		}
+
 		for(k = 0; k < num_subjects; k++) {
 			cabinet->average[k] /= (double)cabinet->ndocs;
 		}
 	}
-}
 }
 
 
@@ -317,7 +321,7 @@ int move_documents() {
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
 	 * document to the cabinet with shorter distance; */
-	 omp_set_nested(1);
+	 //omp_set_nested(1);
 #pragma omp parallel for private(i,j,k,shorty,shortest,dist, coord, cabinet)
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
@@ -329,6 +333,7 @@ int move_documents() {
 				coord = documents[i]->scores[k] - cabinet->average[k];
 				dist += coord * coord;
 			}
+
 			if(dist < shortest) {
 				shortest = dist;
 				shorty = j;
