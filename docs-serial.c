@@ -363,20 +363,21 @@ int main (int argc, char **argv)
 	if(argc > 2) {
 		ncabs = atoi(argv[2]);
 	} else ncabs = 0;
+
+	time = omp_get_wtime();
 	data = load_data(in, ncabs);
 	fclose(in);
 	/* data loaded, file closed */
-	omp_set_num_threads(2);
-	time = omp_get_wtime();
 	algorithm(data);
 	time = omp_get_wtime() - time;
+	data_printDocuments();
+
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
 	if((out = fopen("runtimes.log", "a")) == NULL) {
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE);
 	}
-	data_printDocuments();
 	fprintf(out, "==Serial Test== Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", argv[1], omp_get_num_procs(), time);
 	fclose(out);
 	//freeData(data);

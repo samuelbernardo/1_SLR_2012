@@ -282,8 +282,6 @@ void compute_averages() {
 	unsigned int i, j, k;
 	static volatile Cabinet *cabinet;
 
-	omp_set_nested(1);
-
 #pragma omp parallel for private(i,j,k,cabinet)
 	for(i = 0; i < num_cabinets; i++) {
 		cabinet = cabinets[i];
@@ -294,7 +292,6 @@ void compute_averages() {
 		cabinet->ndocs = 0;
 		/* compute averages for cabinet */
 		for(j = 0; j < num_documents; j++) {
-		#pragma omp task private(k) firstprivate(j)
 			if(documents[j]->cabinet == i) {
 				for(k = 0; k < num_subjects; k++) {
 					cabinet->average[k] += documents[j]->scores[k];
@@ -302,15 +299,8 @@ void compute_averages() {
 				cabinet->ndocs++;
 			}
 		}
-	}
-	#pragma omp taskwait
-	#pragma omp barrier
-	omp_set_nested(0);
-
-#pragma omp parallel for collapse(2) private(i,k)
-	for(i = 0; i < num_cabinets; i++) {
 		for(k = 0; k < num_subjects; k++) {
-			cabinets[i]->average[k] /= (double)cabinets[i]->ndocs;
+			cabinet->average[k] /= (double)cabinet->ndocs;
 		}
 	}
 }
@@ -382,6 +372,7 @@ int main (int argc, char **argv)
 	if(argc > 2) {
 		ncabs = atoi(argv[2]);
 	} else ncabs = 0;
+
 	time = omp_get_wtime();
 	data = load_data(in, ncabs);
 	fclose(in);
@@ -389,12 +380,13 @@ int main (int argc, char **argv)
 	algorithm(data);
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
+	time = omp_get_wtime() - time;
+	data_printDocuments();
+
 	if((out = fopen("runtimes.log", "a")) == NULL) {
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE);
 	}
-	data_printDocuments();
-	time = omp_get_wtime() - time;
 	fprintf(out, "== Paralel == Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", argv[1], omp_get_num_procs(), time);
 	fclose(out);
 	//freeData(data);
