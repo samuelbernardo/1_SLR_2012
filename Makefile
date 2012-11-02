@@ -55,10 +55,18 @@ tp3: compile
 testbig: tbs tbp
 
 tbs: compile
+	./docs-serial sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
+	diff ex10m-100d.tst sampleDocInstances/ex10m-100d.out > ex10m-100d.diff
+	./docs-serial sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
+	diff ex100m-100d.tst sampleDocInstances/ex100m-100d.out > ex100m-100d.diff
 	./docs-serial sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
 	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
 
 tbp: compile
+	./docs-omp sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
+	diff ex10m-100d.tst sampleDocInstances/ex10m-100d.out > ex10m-100d.diff
+	./docs-omp sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
+	diff ex100m-100d.tst sampleDocInstances/ex100m-100d.out > ex100m-100d.diff
 	./docs-omp sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
 	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
 
