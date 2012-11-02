@@ -343,7 +343,7 @@ int main (int argc, char **argv)
 	unsigned int ncabs;
 	double time;
 
-	//omp_set_num_threads(4);
+	//omp_set_num_threads(2);
 
 	if(argc < 1 || argc > 3)
 	{
