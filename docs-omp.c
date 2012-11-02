@@ -242,14 +242,15 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	newData();
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
+#pragma omp parallel private(token,i,id_temp,document) shared(buffer) if(num_documents > 100000)
 	while(token != NULL) {
-		id_temp = strtol(token,NULL,10);
+		id_temp = strtol(buffer,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(document, id_temp);
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
 		{
-			token = fstrtok(NULL, token, DELIMS);
+			token = fstrtok(NULL, buffer, DELIMS);
 			if(token == NULL) {
 				printf("\nload_data: found null token when searching for new subjects!\n");
 				exit(1);
@@ -257,8 +258,9 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 			document_setScore(document, strtod(token,NULL), i);
 		}
 		/*get document identifier*/
-		token = fstrtok(NULL, token, DELIMS);
+		token = fstrtok(NULL, buffer, DELIMS);
 	}
+
 	return data;
 }
 
