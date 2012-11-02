@@ -242,11 +242,12 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	newData();
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
-#pragma omp parallel private(token,i,id_temp,document) shared(buffer) if(num_documents > 100000)
+#pragma omp parallel private(token,id_temp,document,i) shared(buffer) if(num_documents > 100000)
 	while(token != NULL) {
 		id_temp = strtol(buffer,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(document, id_temp);
+
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
 		{
@@ -257,28 +258,13 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 			}
 			document_setScore(document, strtod(token,NULL), i);
 		}
+
 		/*get document identifier*/
 		token = fstrtok(NULL, buffer, DELIMS);
 	}
 
 	return data;
 }
-
-
-double square(double x) {
-	return x * x;
-}
-
-
-double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
-	unsigned int i;
-	double dist = 0;
-	for(i = 0; i < numSubjects; i++) {
-		dist += square(docScores[i] - cabAverages[i]);
-	}
-	return dist;
-}
-
 
 void compute_averages() {
 	unsigned int i, j, k;
