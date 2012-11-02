@@ -242,7 +242,8 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	newData();
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
-#pragma omp parallel private(token,id_temp,document,i) shared(buffer) if(num_documents > 100000)
+	/* condição para correr em paralelo: caso a dimensão dos dados a importar seja maior que a cache de um processador */
+#pragma omp parallel private(token,id_temp,document,i) shared(buffer) if(num_documents*num_subjects*8 < 1000000)
 	while(token != NULL) {
 		id_temp = strtol(buffer,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
