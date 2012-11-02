@@ -308,7 +308,6 @@ int move_documents() {
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < num_cabinets; j++) {
-			//dist = norm(documents[i]->scores, cabinets[j]->average, num_subjects);
 			dist = 0;
 			cabinet = cabinets[j];
 			for(k = 0; k < num_subjects; k++) {

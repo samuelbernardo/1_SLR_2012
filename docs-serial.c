@@ -263,21 +263,6 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 }
 
 
-double square(double x) {
-	return x * x;
-}
-
-
-double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
-	unsigned int i;
-	double dist = 0;
-	for(i = 0; i < numSubjects; i++) {
-		dist += square(docScores[i] - cabAverages[i]);
-	}
-	return dist;
-}
-
-
 void compute_averages() {
 	unsigned int i, j, k;
 	for(i = 0; i < num_cabinets; i++) {
