@@ -242,48 +242,36 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	newData();
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
+	/* condição para correr em paralelo: caso a dimensão dos dados a importar seja maior que a cache de um processador */
+#pragma omp parallel private(token,id_temp,document,i) shared(buffer) if(num_documents*num_subjects*8 < 1000000)
 	while(token != NULL) {
-		id_temp = strtol(token,NULL,10);
+		id_temp = strtol(buffer,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(document, id_temp);
+
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
 		{
-			token = fstrtok(NULL, token, DELIMS);
+			token = fstrtok(NULL, buffer, DELIMS);
 			if(token == NULL) {
 				printf("\nload_data: found null token when searching for new subjects!\n");
 				exit(1);
 			}
 			document_setScore(document, strtod(token,NULL), i);
 		}
+
 		/*get document identifier*/
-		token = fstrtok(NULL, token, DELIMS);
+		token = fstrtok(NULL, buffer, DELIMS);
 	}
+
 	return data;
 }
-
-
-double square(double x) {
-	return x * x;
-}
-
-
-double norm(double *docScores, double *cabAverages, unsigned int numSubjects) {
-	unsigned int i;
-	double dist = 0;
-	for(i = 0; i < numSubjects; i++) {
-		dist += square(docScores[i] - cabAverages[i]);
-	}
-	return dist;
-}
-
 
 void compute_averages() {
 	unsigned int i, j, k;
 	static volatile Cabinet *cabinet;
 
-#pragma omp parallel private(i,j,k,cabinet)
-{
+#pragma omp parallel for private(i,j,k,cabinet)
 	for(i = 0; i < num_cabinets; i++) {
 		cabinet = cabinets[i];
 		/* reset cabinet */
@@ -292,7 +280,6 @@ void compute_averages() {
 		}
 		cabinet->ndocs = 0;
 		/* compute averages for cabinet */
-		#pragma omp for
 		for(j = 0; j < num_documents; j++) {
 			if(documents[j]->cabinet == i) {
 				for(k = 0; k < num_subjects; k++) {
@@ -305,7 +292,6 @@ void compute_averages() {
 			cabinet->average[k] /= (double)cabinet->ndocs;
 		}
 	}
-}
 }
 
 
@@ -322,7 +308,6 @@ int move_documents() {
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < num_cabinets; j++) {
-			//dist = norm(documents[i]->scores, cabinets[j]->average, num_subjects);
 			dist = 0;
 			cabinet = cabinets[j];
 			for(k = 0; k < num_subjects; k++) {
@@ -358,7 +343,7 @@ int main (int argc, char **argv)
 	unsigned int ncabs;
 	double time;
 
-	//omp_set_num_threads(4);
+	//omp_set_num_threads(2);
 
 	if(argc < 1 || argc > 3)
 	{
@@ -375,6 +360,7 @@ int main (int argc, char **argv)
 	if(argc > 2) {
 		ncabs = atoi(argv[2]);
 	} else ncabs = 0;
+
 	time = omp_get_wtime();
 	data = load_data(in, ncabs);
 	fclose(in);
@@ -382,12 +368,13 @@ int main (int argc, char **argv)
 	algorithm(data);
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
+	time = omp_get_wtime() - time;
+	data_printDocuments();
+
 	if((out = fopen("runtimes.log", "a")) == NULL) {
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE);
 	}
-	data_printDocuments();
-	time = omp_get_wtime() - time;
 	fprintf(out, "== Paralel == Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", argv[1], omp_get_num_procs(), time);
 	fclose(out);
 	//freeData(data);
