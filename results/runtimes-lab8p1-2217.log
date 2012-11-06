@@ -1,0 +1,12 @@
+==Serial Test== Input: sampleDocInstances/ex5-1d.in,	 Cores: 4, 		 Elapsed Time: 3.4227e-05 seconds
+==Serial Test== Input: sampleDocInstances/ex10-2d.in,	 Cores: 4, 		 Elapsed Time: 3.9081e-05 seconds
+==Serial Test== Input: sampleDocInstances/ex1000-50d.in,	 Cores: 4, 		 Elapsed Time: 0.0889613 seconds
+== Paralel == Input: sampleDocInstances/ex5-1d.in,	 Cores: 4, 		 Elapsed Time: 0.000125984 seconds
+== Paralel == Input: sampleDocInstances/ex10-2d.in,	 Cores: 4, 		 Elapsed Time: 0.000135123 seconds
+== Paralel == Input: sampleDocInstances/ex1000-50d.in,	 Cores: 4, 		 Elapsed Time: 0.0346866 seconds
+==Serial Test== Input: sampleDocInstances/ex10m-100d.in,	 Cores: 4, 		 Elapsed Time: 4.39245 seconds
+==Serial Test== Input: sampleDocInstances/ex100m-100d.in,	 Cores: 4, 		 Elapsed Time: 110.215 seconds
+==Serial Test== Input: sampleDocInstances/ex1M-100d.in,	 Cores: 4, 		 Elapsed Time: 219.749 seconds
+== Paralel == Input: sampleDocInstances/ex10m-100d.in,	 Cores: 4, 		 Elapsed Time: 1.37762 seconds
+== Paralel == Input: sampleDocInstances/ex100m-100d.in,	 Cores: 4, 		 Elapsed Time: 34.8584 seconds
+== Paralel == Input: sampleDocInstances/ex1M-100d.in,	 Cores: 4, 		 Elapsed Time: 79.122 seconds

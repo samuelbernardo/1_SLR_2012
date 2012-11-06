@@ -1,0 +1,6 @@
+==Serial Test== Input: sampleDocInstances/ex10m-100d.in,	 Cores: 4, 		 Elapsed Time: 4.38858 seconds
+==Serial Test== Input: sampleDocInstances/ex100m-100d.in,	 Cores: 4, 		 Elapsed Time: 110.098 seconds
+==Serial Test== Input: sampleDocInstances/ex1M-100d.in,	 Cores: 4, 		 Elapsed Time: 219.209 seconds
+== Paralel == Input: sampleDocInstances/ex10m-100d.in,	 Cores: 4, 		 Elapsed Time: 1.40181 seconds
+== Paralel == Input: sampleDocInstances/ex100m-100d.in,	 Cores: 4, 		 Elapsed Time: 34.638 seconds
+== Paralel == Input: sampleDocInstances/ex1M-100d.in,	 Cores: 4, 		 Elapsed Time: 80.0529 seconds
