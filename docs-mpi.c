@@ -226,8 +226,7 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	newData();
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
-	/* condição para correr em paralelo: caso a dimensão dos dados a importar seja maior que a cache de um processador */
-#pragma omp parallel private(token,id_temp,document,i) shared(buffer) if(num_documents*num_subjects*8 < 1000000)
+#pragma omp parallel private(token,id_temp,document,i) shared(buffer) if(num_documents > 100000)
 	while(token != NULL) {
 		id_temp = strtol(buffer,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
@@ -292,6 +291,7 @@ int move_documents() {
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < num_cabinets; j++) {
+			//dist = norm(documents[i]->scores, cabinets[j]->average, num_subjects);
 			dist = 0;
 			cabinet = cabinets[j];
 			for(k = 0; k < num_subjects; k++) {
@@ -327,7 +327,7 @@ int main (int argc, char **argv)
 	unsigned int ncabs;
 	double time;
 
-	//omp_set_num_threads(2);
+	omp_set_num_threads(2);
 
 	if(argc < 1 || argc > 3)
 	{
