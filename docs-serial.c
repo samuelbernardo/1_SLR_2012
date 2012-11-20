@@ -286,6 +286,9 @@ void compute_averages() {
 	}
 }
 
+double powa(double d1) {
+	return d1 * d1;
+}
 
 int move_documents() {
 	unsigned int i, j, k, shorty;
@@ -300,7 +303,7 @@ int move_documents() {
 			//dist = norm(documents[i]->scores, cabinets[j]->average, num_subjects);
 			dist = 0;
 			for(k = 0; k < num_subjects; k++) {
-				dist += pow((documents[i]->scores[k] - cabinets[j]->average[k]), 2);
+				dist += powa(documents[i]->scores[k] - cabinets[j]->average[k]);
 			}
 			if(dist < shortest) {
 				shortest = dist;
@@ -314,6 +317,8 @@ int move_documents() {
 	}
 	return changed;
 }
+
+
 
 
 void algorithm() {
