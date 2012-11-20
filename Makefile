@@ -4,13 +4,16 @@ CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99' -fopenmp
 
 recompile: clean compile
 
-compile: docs-serial docs-omp
+compile: docs-serial docs-mpi
 
 kinst: docs-serial-kinst docs-omp-kinst ren
 
 docs-serial: docs-serial.c
 
 docs-omp: docs-omp.c
+
+docs-mpi: docs-mpi.c
+	mpicc $(CFLAGS) $^ -o $@
 
 docs-serial-kinst: docs-serial.c
 	kinst-ompp $(CC) $(CFLAGS) $^ -o $@

@@ -15,6 +15,7 @@
 #include <float.h>
 #include <time.h>
 #include <omp.h>
+#include <mpi.h>
 
 #define BUFFER_SIZE 256
 #define DELIMS " \n"
@@ -26,7 +27,8 @@
 #define _TESTAUX1_ 1
 #define _TESTAUX2_ 1
 #define _TESTAUX3_ 1
-#define __ALGORITHM_SAM__ 0
+#define __ALGORITHM_SAM__ 1
+#define __MPI_PROCESS_HELLO__ 0
 
 /* Document class */
 typedef struct document {
@@ -75,11 +77,23 @@ void freeCabinet(volatile Cabinet *cab) {
 	free((void*)cab);
 }
 
+/* --- */
+/* Data class */
+typedef struct data {
+	unsigned int num_cabinets;
+	unsigned int num_documents;
+	unsigned int num_subjects;
+	Document **documents;
+	Cabinet **cabinets;
+} Data;
+
+
 unsigned int num_cabinets;
 unsigned int num_documents;
 unsigned int num_subjects;
 static volatile Document **documents;
 static volatile Cabinet **cabinets;
+Data *data;
 
 void newData() 
 {
@@ -326,6 +340,8 @@ int main (int argc, char **argv)
 	//Data *data;
 	unsigned int ncabs;
 	double time;
+	int id, p, size;
+	char hostname[MPI_MAX_PROCESSOR_NAME];
 
 	omp_set_num_threads(2);
 
@@ -345,23 +361,44 @@ int main (int argc, char **argv)
 		ncabs = atoi(argv[2]);
 	} else ncabs = 0;
 
-	time = omp_get_wtime();
+	MPI_Init(&argc, &argv);
+
+	MPI_Comm_rank(MPI_COMM_WORLD, &id);
+	MPI_Comm_size(MPI_COMM_WORLD, &p);
+	MPI_Get_processor_name(hostname, &size);
+#if !__MPI_PROCESS_HELLO__
+	printf("Process %d sends greetings from machine %s!", id, hostname);
+#endif
+	MPI_Barrier (MPI_COMM_WORLD);
+
+	//time = omp_get_wtime();
+	time = - MPI_Wtime();
+	
 	data = load_data(in, ncabs);
 	fclose(in);
 	/* data loaded, file closed */
 	algorithm(data);
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
-	time = omp_get_wtime() - time;
+
 	data_printDocuments();
 
-	if((out = fopen("runtimes.log", "a")) == NULL) {
+	MPI_Barrier (MPI_COMM_WORLD);
+
+	//time = omp_get_wtime() - time;
+	time += MPI_Wtime();
+
+	if((out = fopen("/mnt/nimbus/pool/CPD/groups/tue_11h00/01/project/runtimes_cpd01.log", "a")) == NULL) {
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE);
 	}
-	fprintf(out, "== Paralel == Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", argv[1], omp_get_num_procs(), time);
+
+	fprintf(out, "== Distributed-Paralel == Id: %d Hostname: %s \t\t Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", id, hostname, argv[1], omp_get_num_procs(), time);
 	fclose(out);
 	//freeData(data);
+	
+	MPI_Finalize();
+
 	return 0;
 }
 
