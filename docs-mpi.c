@@ -363,7 +363,7 @@ int main (int argc, char **argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	MPI_Get_processor_name(hostname, &size);
 #if !__MPI_PROCESS_HELLO__
-	printf("Process %d sends greetings from machine %s!", id, hostname);
+	printf("Process %d sends greetings from machine %s!\n", id, hostname);
 #endif
 	MPI_Barrier (MPI_COMM_WORLD);
 
@@ -389,7 +389,7 @@ int main (int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(out, "== Distributed-Paralel == Id: %d Hostname: %s \t\t Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", id, hostname, argv[1], omp_get_num_procs(), time);
+	fprintf(out, "== Distributed-Paralel == Id: %d Hostname: %s \t\t Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n\n", id, hostname, argv[1], omp_get_num_procs(), time);
 	fclose(out);
 	//freeData(data);
 	
