@@ -14,6 +14,7 @@
 #include <limits.h>
 #include <float.h>
 #include <time.h>
+#include <omp.h>
 #include <mpi.h>
 
 #define BUFFER_SIZE 256
@@ -239,6 +240,7 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	newData();
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
+#pragma omp parallel private(token,id_temp,document,i) shared(buffer) if(num_documents > 100000)
 	while(token != NULL) {
 		id_temp = strtol(buffer,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
@@ -266,6 +268,7 @@ void compute_averages() {
 	unsigned int i, j, k;
 	static volatile Cabinet *cabinet;
 
+#pragma omp parallel for private(i,j,k,cabinet)
 	for(i = 0; i < num_cabinets; i++) {
 		cabinet = cabinets[i];
 		/* reset cabinet */
@@ -298,6 +301,7 @@ int move_documents() {
 	 * of each cabinet and move the
 	 * document to the cabinet with shorter distance; */
 	 omp_set_nested(1);
+#pragma omp parallel for private(i,j,k,shorty,shortest,dist, coord, cabinet)
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < num_cabinets; j++) {
