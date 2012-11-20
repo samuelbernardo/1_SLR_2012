@@ -57,7 +57,9 @@ tp3: compile
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 td1: compile
-	mpirun --host \$\(getnodes $(NUMNODES)\) -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
+	availableNodes $(NUMNODES) > nodeslist.txt
+	sed -i 's/,/\n/g' nodeslist.txt
+	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
 	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
 
 td2: compile
