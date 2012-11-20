@@ -103,7 +103,6 @@ void freeData()
 	}
 	free(cabinets);
 	free(documents);
-	//free(data);
 }
 
 void data_setDocument(Document *doc, unsigned int pos) 
@@ -121,7 +120,7 @@ void data_printDocuments()
 }
 
 
-void data_printInput(Data *data)
+void data_printInput()
 {
 	unsigned int i, j;
 
@@ -149,9 +148,7 @@ void data_printCabinets()
 }
 
 
-Document *data_getDocument(Data *data, unsigned int pos) {
-	return data->documents[pos];
-}
+
 /* --- */
 
 /* read tokens from file */
@@ -211,7 +208,7 @@ cont:
 
 
 /* Parses the input (.in) file and creates all data according to its contents */
-Data *load_data(FILE *in, unsigned int ncabs) {
+void load_data(FILE *in, unsigned int ncabs) {
 
 	Document *document;
 
@@ -247,8 +244,6 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 		/*get document identifier*/
 		token = fstrtok(NULL, buffer, DELIMS);
 	}
-
-	return data;
 }
 
 void compute_averages() {
@@ -323,7 +318,6 @@ void algorithm() {
 int main (int argc, char **argv)
 {
 	FILE *in, *out;
-	//Data *data;
 	unsigned int ncabs;
 	double time;
 
@@ -346,10 +340,10 @@ int main (int argc, char **argv)
 	} else ncabs = 0;
 
 	time = omp_get_wtime();
-	data = load_data(in, ncabs);
+	load_data(in, ncabs);
 	fclose(in);
 	/* data loaded, file closed */
-	algorithm(data);
+	algorithm();
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
 	time = omp_get_wtime() - time;
