@@ -28,6 +28,13 @@
 #define _TESTAUX3_ 1
 #define __ALGORITHM_SAM__ 1
 #define __MPI_PROCESS_HELLO__ 0
+#define __MPI_PROCESS_END__ 0
+
+/* MPI Tags for comunnication */
+#define DOCS_TAG 101
+#define SCORE_TAG 102
+#define CAB_TAG 103
+
 
 /* Document class */
 typedef struct document {
@@ -90,9 +97,20 @@ typedef struct data {
 unsigned int num_cabinets;
 unsigned int num_documents;
 unsigned int num_subjects;
+unsigned int num_docs_buffer;
+unsigned int start_doc_num;
+int id, p, size;
+char hostname[MPI_MAX_PROCESSOR_NAME];
 static volatile Document **documents;
 static volatile Cabinet **cabinets;
+static volatile Document **docs_buffer;
 Data *data;
+// global variables for initial distribution of docs
+MPI_Request docsRequest;
+MPI_Status docsStatus;
+MPI_Request *docScoresRequest;
+MPI_Status docScoresStatus;
+
 
 void newData() 
 {
@@ -229,7 +247,7 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	Document *document;
 
 	unsigned int id_temp = 0;
-	unsigned int i;
+	unsigned int i, num_docs_segm, proc = 1, num_flag = 0;
 	char buffer[BUFFER_SIZE];
 	char *token = buffer;
 
@@ -237,12 +255,27 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	fscanf(in, "%u\n", &num_documents);
 	fscanf(in, "%u\n", &num_subjects);
 	newData();
+	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_documents);
+
+	MPI_Bcast(&num_subjects, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&num_cabinets, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+	num_docs_segm = num_documents / p;
+
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
 	while(token != NULL) {
 		id_temp = strtol(buffer,NULL,10);
 		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
 		data_setDocument(document, id_temp);
+
+		if(!id && proc < p) {
+			if(!num_flag) {
+				MPI_Isend(&num_docs_segm, 1, MPI_UNSIGNED, id, DOCS_TAG, MPI_COMM_WORLD, &docsRequest);
+				num_flag = 1;
+			}
+			MPI_Isend(document, sizeof(Document), MPI_BYTE, proc, DOCS_TAG, MPI_COMM_WORLD, &docsRequest);
+		}
 
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
@@ -254,6 +287,14 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 			}
 			document_setScore(document, strtod(token,NULL), i);
 		}
+		if(!id && proc < p) {
+			MPI_Isend(document->scores, num_subjects, MPI_DOUBLE, proc, SCORE_TAG, MPI_COMM_WORLD, &docScoresRequest[id_temp]);
+			if(!((id_temp+1) % num_docs_segm)) {
+				proc++;
+				num_flag = 0;
+				if(proc == p) start_doc_num = id_temp+1;
+			}
+		}
 
 		/*get document identifier*/
 		token = fstrtok(NULL, buffer, DELIMS);
@@ -262,29 +303,57 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 	return data;
 }
 
+void receiveDocuments() {
+	Document *doc;
+	int i;
+	MPI_Status status;
+	double *scores;
+
+	if(id) {
+		MPI_Bcast(&num_subjects, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&num_cabinets, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+		MPI_Recv(&num_docs_buffer, 1, MPI_UNSIGNED, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
+
+		docs_buffer = (volatile Document**)malloc(sizeof(volatile Document*) * num_docs_buffer);
+		for(i=0; i<num_docs_buffer; i++) {
+			doc = (Document*)malloc(sizeof(Document));
+			MPI_Recv(doc, sizeof(Document), MPI_BYTE, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
+			data_setDocument(doc, i);
+			scores = (double *)malloc(sizeof(double)*num_subjects);
+			MPI_Recv(scores, num_subjects, MPI_DOUBLE, 0, SCORE_TAG, MPI_COMM_WORLD, &status);
+			doc->scores = scores;
+		}
+	}
+}
+
 void compute_averages() {
 	unsigned int i, j, k;
 	static volatile Cabinet *cabinet;
+	static volatile double *average, *average_total;
 
 	for(i = 0; i < num_cabinets; i++) {
 		cabinet = cabinets[i];
+		average = cabinet->average;
 		/* reset cabinet */
 		for(k = 0; k < num_subjects; k++) {
-			cabinet->average[k] = 0;
+			average[k] = 0;
 		}
 		cabinet->ndocs = 0;
 		/* compute averages for cabinet */
-		for(j = 0; j < num_documents; j++) {
-			if(documents[j]->cabinet == i) {
+		for(j = 0; j < num_docs_buffer; j++) {
+			if(docs_buffer[j]->cabinet == i) {
 				for(k = 0; k < num_subjects; k++) {
-					cabinet->average[k] += documents[j]->scores[k];
+					average[k] += docs_buffer[j]->scores[k];
 				}
+
 				cabinet->ndocs++;
 			}
 		}
 		for(k = 0; k < num_subjects; k++) {
-			cabinet->average[k] /= (double)cabinet->ndocs;
+			average[k] /= (double)cabinet->ndocs;
 		}
+
+		MPI_Allreduce((void*)average, (void*)average_total, num_subjects, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	}
 }
 
@@ -297,7 +366,6 @@ int move_documents() {
 	/* for each document, compute the distance to the averages
 	 * of each cabinet and move the
 	 * document to the cabinet with shorter distance; */
-	 omp_set_nested(1);
 	for(i = 0; i < num_documents; i++) {
 		shortest = DBL_MAX;
 		for(j = 0; j < num_cabinets; j++) {
@@ -334,28 +402,9 @@ int main (int argc, char **argv)
 {
 	FILE *in, *out;
 	//Data *data;
-	unsigned int ncabs;
+	unsigned int ncabs, i;
 	double time;
-	int id, p, size;
-	char hostname[MPI_MAX_PROCESSOR_NAME];
 
-	omp_set_num_threads(2);
-
-	if(argc < 1 || argc > 3)
-	{
-		printf("[argc] Incorrect Number of arguments.\n");
-		exit(EXIT_FAILURE);
-	}
-
-
-	/* process file... */
-	if((in = fopen(argv[1], "r")) == NULL) {
-		printf("[fopen-read] Cannot open file to read.\n");
-		exit(EXIT_FAILURE);
-	}
-	if(argc > 2) {
-		ncabs = atoi(argv[2]);
-	} else ncabs = 0;
 
 	MPI_Init(&argc, &argv);
 
@@ -367,11 +416,43 @@ int main (int argc, char **argv)
 #endif
 	MPI_Barrier (MPI_COMM_WORLD);
 
-	//time = omp_get_wtime();
-	time = - MPI_Wtime();
+	if(!id) { //apenas executa no master
+		if(argc < 1 || argc > 3)
+		{
+			printf("[argc] Incorrect Number of arguments.\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/* process file... */
+		if((in = fopen(argv[1], "r")) == NULL) {
+			printf("[fopen-read] Cannot open file to read.\n");
+			exit(EXIT_FAILURE);
+		}
+		if(argc > 2) {
+			ncabs = atoi(argv[2]);
+		} else ncabs = 0;
+
+		//time = omp_get_wtime();
+		time = - MPI_Wtime();
+		
+		data = load_data(in, ncabs);
+		fclose(in);
+	}
 	
-	data = load_data(in, ncabs);
-	fclose(in);
+	/* scater set of documents for each process */
+	if(id) {
+		receiveDocuments();
+	}
+
+	/* master aguarda o envio de todos os scores associados a documentos */
+	if(!id) {
+		for(i=0; i<num_documents; i++)
+			MPI_Wait(&docScoresRequest[i], &docScoresStatus);
+
+		free(docScoresRequest);
+	}
+
+
 	/* data loaded, file closed */
 	algorithm(data);
 	/*printf("documents post-processing\n");
@@ -380,16 +461,15 @@ int main (int argc, char **argv)
 	data_printDocuments();
 
 	MPI_Barrier (MPI_COMM_WORLD);
-
 	//time = omp_get_wtime() - time;
-	time += MPI_Wtime();
+	if(!id)	time += MPI_Wtime();
 
 	if((out = fopen("/mnt/nimbus/pool/CPD/groups/tue_11h00/01/project/runtimes_cpd01.log", "a")) == NULL) {
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(out, "== Distributed-Paralel == Id: %d Hostname: %s \t\t Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n\n", id, hostname, argv[1], omp_get_num_procs(), time);
+	fprintf(out, "== Distributed-Paralel == Id: %d Hostname: %s \t\t Input: %s,\t Processes number: %d, \t\t Elapsed Time: %g seconds\n\n", id, hostname, argv[1], p, time);
 	fclose(out);
 	//freeData(data);
 	
