@@ -37,74 +37,84 @@
 
 
 /* Document class */
-typedef struct document {
+/*typedef struct document {
 	int id;
 	int cabinet;
 	double *scores;
-} Document;
-
-Document* newDocument(int id, int cabinet, unsigned int num_subjects) 
-{
-	Document *doc = (Document*) malloc(sizeof(Document));
-	doc->id = id;
-	doc->cabinet = cabinet;
-	doc->scores = (double*) malloc(sizeof(double) * num_subjects);
-	return doc;
-}
-
-void freeDocument(volatile Document *doc) 
-{
-	free(doc->scores);
-	free((void*)doc);
-}
-
-void document_setScore(Document *doc, double score, unsigned int pos) 
-{
-	doc->scores[pos] = score;
-}
+} Document;*/
 
 /* --- */
 
 /* Cabinet class */
-typedef struct cabinet {
+typedef struct cabinet
+{
 	unsigned int ndocs;
 	double *average;
 } Cabinet;
 
-Cabinet *newCabinet(unsigned int num_subjects) {
+Cabinet *newCabinet(unsigned int num_subjects)
+{
 	Cabinet *cab = (Cabinet*) malloc(sizeof(Cabinet));
 	cab->ndocs = 0;
 	cab->average = (double*) calloc(num_subjects, sizeof(double));
 	return cab;
 }
 
-void freeCabinet(volatile Cabinet *cab) {
+void freeCabinet(volatile Cabinet *cab)
+{
 	free(cab->average);
 	free((void*)cab);
 }
 
-/* --- */
-/* Data class */
-typedef struct data {
-	unsigned int num_cabinets;
-	unsigned int num_documents;
-	unsigned int num_subjects;
-	Document **documents;
-	Cabinet **cabinets;
-} Data;
+typedef DocsCab unsigned int;
 
+/* --- */
 
 unsigned int num_cabinets;
 unsigned int num_documents;
 unsigned int num_subjects;
-unsigned int num_docs_buffer;
+unsigned int num_docs_chunk;
 unsigned int start_doc_num;
-int id, p, size;
+unsigned int proc_id, num_procs, size;
 char hostname[MPI_MAX_PROCESSOR_NAME];
-static volatile Document **documents;
 static volatile Cabinet **cabinets;
-static volatile Document **docs_buffer;
-Data *data;
+static volatile DocsCab *docsCabinet;
+
+// data types for comm messages
+union block {
+	unsigned int num;
+	double subj;
+} InputBlock;
+
+InputBlock *procData;
+
+void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
+{
+	procData = (InputBlock *)malloc(sizeof(InputBlock)*(docs*subjs/procs));
+}
+
+InputBlock *getDocument(unsigned int doc)
+{
+	return procData+(doc*num_subjects);
+}
+
+double getSubject(unsigned int subjPos, InputBlock *document)
+{
+  return document[subjPos].subj;
+}
+
+void clear_documents()
+{
+  InputBlock *doc = procData;
+  unsigned int i, j;
+
+  for(i=0; i < num_docs_chunk; i++) {
+    for(j=0; j < num_subjects; j++) {
+      doc[i*num_subjects+j] = 0;
+    }
+  }
+}
+
 // global variables for initial distribution of docs
 MPI_Request docsRequest;
 MPI_Status docsStatus;
@@ -115,53 +125,53 @@ MPI_Status docScoresStatus;
 void newData() 
 {
 	unsigned int i;
-	documents = (volatile Document**) malloc(sizeof(volatile Document*) * num_documents);
-	cabinets = (volatile Cabinet**) malloc(sizeof(volatile Cabinet*) * num_cabinets);
+
+  num_docs_chunk = num_documents/num_procs;
+
+  allocInputBlock(num_documents, num_subjects, num_procs);
+  docsCabinet = (volatile DocsCab*) malloc(sizeof(volatile DocCabs) * num_documents);
+	
+  cabinets = (volatile Cabinet**) malloc(sizeof(volatile Cabinet*) * num_cabinets);
 	for(i = 0; i < num_cabinets; i++) {
 		cabinets[i] = newCabinet(num_subjects);
 	}
-	return;
+	
+  return;
 }
 
-void freeData() 
+void freeData()
 {
 	unsigned int i;
-	for(i = 0; i < num_documents; i++) {
-		freeDocument(documents[i]);
-	}
-	for(i = 0; i < num_cabinets; i++) {
+  
+  free(procData);
+
+  free(docsCabinet);
+	
+  for(i = 0; i < num_cabinets; i++) {
 		freeCabinet(cabinets[i]);
 	}
 	free(cabinets);
-	free(documents);
-	//free(data);
 }
-
-void data_setDocument(Document *doc, unsigned int pos) 
-{
-	documents[pos] = doc;
-}
-
 
 void data_printDocuments() 
 {
 	unsigned int i;
 	for(i = 0; i < num_documents; i++) {
-		printf("%u %u\n", documents[i]->id, documents[i]->cabinet);
+		printf("%u %u\n", i, docsCabinet[i]);
 	}
 }
 
 
-void data_printInput(Data *data)
+void data_printInput()
 {
 	unsigned int i, j;
 
 	printf("%u\n%u\n%u\n", num_cabinets, num_documents, num_subjects);
 
 	for(i = 0; i < num_documents; i++) {
-		printf("%u ", documents[i]->id);
+		printf("%u ", i);
 		for(j=0; j < num_subjects; j++)
-			printf("%.1f ", documents[i]->scores[j]);
+			printf("%.1f ", getSubject(j, getDocument(i)));
 		printf("\n");
 	}
 }
@@ -180,9 +190,6 @@ void data_printCabinets()
 }
 
 
-Document *data_getDocument(Data *data, unsigned int pos) {
-	return data->documents[pos];
-}
 /* --- */
 
 /* read tokens from file */
@@ -242,40 +249,33 @@ cont:
 
 
 /* Parses the input (.in) file and creates all data according to its contents */
-Data *load_data(FILE *in, unsigned int ncabs) {
+void load_data(FILE *in, unsigned int ncabs)
+{
+  InputBlock *document;
 
-	Document *document;
-
-	unsigned int id_temp = 0;
-	unsigned int i, num_docs_segm, proc = 1, num_flag = 0;
+	unsigned int id_temp = 0, id_chunk;
+	unsigned int i, proc = 1, vals[3];
 	char buffer[BUFFER_SIZE];
 	char *token = buffer;
 
 	fscanf(in, "%u\n", &num_cabinets);
 	fscanf(in, "%u\n", &num_documents);
 	fscanf(in, "%u\n", &num_subjects);
+  if(!ncabs) num_cabinets = ncabs;
+  vals[0] = num_documents; vals[1] = num_subjects; vals[2] = num_cabinets;
+  MPI_Bcast(vals, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
 	newData();
-	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_documents);
-
-	MPI_Bcast(&num_subjects, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&num_cabinets, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-	num_docs_segm = num_documents / p;
+	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_procs);
 
 	/*get document identifier*/
 	token = fstrtok(in, token, DELIMS);
 	while(token != NULL) {
 		id_temp = strtol(buffer,NULL,10);
-		document = newDocument(id_temp, id_temp%num_cabinets, num_subjects);
-		data_setDocument(document, id_temp);
+    id_chunk = id_temp - (proc - 1) * num_docs_chunk;
 
-		if(!id && proc < p) {
-			if(!num_flag) {
-				MPI_Isend(&num_docs_segm, 1, MPI_UNSIGNED, id, DOCS_TAG, MPI_COMM_WORLD, &docsRequest);
-				num_flag = 1;
-			}
-			MPI_Isend(document, sizeof(Document), MPI_BYTE, proc, DOCS_TAG, MPI_COMM_WORLD, &docsRequest);
-		}
+    docsCabinet[id_temp] = id_temp%num_cabinets;
+    document = getDocument(id_chunk);
 
 		/*get subjects and add them to double average*/
 		for(i = 0; i < num_subjects; i++)
@@ -285,44 +285,37 @@ Data *load_data(FILE *in, unsigned int ncabs) {
 				printf("\nload_data: found null token when searching for new subjects!\n");
 				exit(1);
 			}
-			document_setScore(document, strtod(token,NULL), i);
+      document[i].subj = strtod(token,NULL);
 		}
-		if(!id && proc < p) {
-			MPI_Isend(document->scores, num_subjects, MPI_DOUBLE, proc, SCORE_TAG, MPI_COMM_WORLD, &docScoresRequest[id_temp]);
-			if(!((id_temp+1) % num_docs_segm)) {
-				proc++;
-				num_flag = 0;
-				if(proc == p) start_doc_num = id_temp+1;
-			}
-		}
+    if(!id && proc < num_procs && id_chunk == num_docs_chunk - 1) {
+      MPI_Isend(procData, num_docs_chunk, MPI_BYTE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
+      if(++proc == num_procs) {
+        clear_documents();
+        start_doc_num = id_temp + 1;
+      }
+    }
 
 		/*get document identifier*/
 		token = fstrtok(NULL, buffer, DELIMS);
 	}
 
-	return data;
 }
 
 void receiveDocuments() {
 	Document *doc;
-	int i;
+	unsigned int i, vals[3];
 	MPI_Status status;
 	double *scores;
 
 	if(id) {
-		MPI_Bcast(&num_subjects, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-		MPI_Bcast(&num_cabinets, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-		MPI_Recv(&num_docs_buffer, 1, MPI_UNSIGNED, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
+		MPI_Bcast(vals, 3, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    num_documents = vals[0];
+    num_subjects = vals[1];
+    num_cabinets = vals[2];
+    num_subjs_chunk = num_documents*num_subjects/num_procs;
+    newData();
 
-		docs_buffer = (volatile Document**)malloc(sizeof(volatile Document*) * num_docs_buffer);
-		for(i=0; i<num_docs_buffer; i++) {
-			doc = (Document*)malloc(sizeof(Document));
-			MPI_Recv(doc, sizeof(Document), MPI_BYTE, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
-			data_setDocument(doc, i);
-			scores = (double *)malloc(sizeof(double)*num_subjects);
-			MPI_Recv(scores, num_subjects, MPI_DOUBLE, 0, SCORE_TAG, MPI_COMM_WORLD, &status);
-			doc->scores = scores;
-		}
+		MPI_Recv(procData, num_subjs_chunk, MPI_BYTE, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
 	}
 }
 
@@ -401,7 +394,6 @@ void algorithm() {
 int main (int argc, char **argv)
 {
 	FILE *in, *out;
-	//Data *data;
 	unsigned int ncabs, i;
 	double time;
 
@@ -414,7 +406,7 @@ int main (int argc, char **argv)
 #if !__MPI_PROCESS_HELLO__
 	printf("Process %d sends greetings from machine %s!\n", id, hostname);
 #endif
-	MPI_Barrier (MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	if(!id) { //apenas executa no master
 		if(argc < 1 || argc > 3)
@@ -435,18 +427,18 @@ int main (int argc, char **argv)
 		//time = omp_get_wtime();
 		time = - MPI_Wtime();
 		
-		data = load_data(in, ncabs);
+		load_data(in, ncabs);
 		fclose(in);
 	}
 	
-	/* scater set of documents for each process */
+	/* receive documents for each process */
 	if(id) {
 		receiveDocuments();
 	}
 
 	/* master aguarda o envio de todos os scores associados a documentos */
 	if(!id) {
-		for(i=0; i<num_documents; i++)
+		for(i=0; i<num_procs; i++)
 			MPI_Wait(&docScoresRequest[i], &docScoresStatus);
 
 		free(docScoresRequest);
