@@ -32,6 +32,7 @@
 #define __MPI_PROCS_NUMBER__ 1
 #define __MPI_TEST_AVERAGES__ 1
 #define __MPI_TEST_PRINT__ 1
+#define __MPI_TEST_MOVES__ 1
 
 /* MPI number of flags in end of cabinets array */
 #define _MPI_FLAGS_ 1
@@ -538,11 +539,17 @@ int move_documents()
         if(dist < shortest) {
           shortest = dist;
           shorty = j;
+#if !__MPI_TEST_MOVES__
+  printf("cheguei aqui %d (move_documents a colocar shorty = j e shortest = dist), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \n", __LINE__, i, j, shortest, dist);
+#endif
         }
       }
       if(shorty != docsCabinet[i]) {
         docsCabinet[i] = shorty;
         changed = 1;
+#if !__MPI_TEST_MOVES__
+  printf("cheguei aqui %d (a mudar documento de cabinet), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \t docsCabinet[i] = %d\n", __LINE__, i, j, shortest, dist, docsCabinet[i]);
+#endif
       }
     }
   }
@@ -560,11 +567,17 @@ int move_documents()
         if(dist < shortest) {
           shortest = dist;
           shorty = j;
+#if !__MPI_TEST_MOVES__
+  printf("cheguei aqui %d (move_documents a colocar shorty = j e shortest = dist), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \n", __LINE__, i, j, shortest, dist);
+#endif
         }
       }
       if(shorty != docsCabinet[i]) {
         docsCabinet[i] = shorty;
         changed = 1;
+#if !__MPI_TEST_MOVES__
+  printf("cheguei aqui %d (a mudar documento de cabinet), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \t docsCabinet[i] = %d\n", __LINE__, i, j, shortest, dist, docsCabinet[i]);
+#endif
       }
     }
   }
