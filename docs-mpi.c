@@ -29,6 +29,7 @@
 #define __ALGORITHM_SAM__ 1
 #define __MPI_PROCESS_HELLO__ 0
 #define __MPI_PROCESS_END__ 0
+#define __MPI_PROCS_NUMBER__ 0
 
 /* MPI number of flags in end of cabinets array */
 #define _MPI_FLAGS_ 1
@@ -146,6 +147,9 @@ MPI_Status docScoresStatus;
 
 void newData() 
 {
+#if !__MPI_PROCS_NUMBER__
+  printf("total de processos: %d\n", num_procs);
+#endif
   num_docs_chunk = num_documents/num_procs;
 
   allocInputBlock(num_documents, num_subjects, num_procs);
@@ -288,22 +292,40 @@ void load_data(FILE *in, unsigned int ncabs)
 	char *token = buffer;
 
 	fscanf(in, "%u\n", &num_cabinets);
+#if !__MPI_PROCS_NUMBER__
+  printf("cheguei aqui %d, e o valor de num_cabinets é %d.\n", __LINE__, num_cabinets);
+#endif
 	fscanf(in, "%u\n", &num_documents);
+#if !__MPI_PROCS_NUMBER__
+  printf("cheguei aqui %d, e o valor de num_documents é %d.\n", __LINE__, num_documents);
+#endif
 	fscanf(in, "%u\n", &num_subjects);
-  if(!ncabs) num_cabinets = ncabs;
+#if !__MPI_PROCS_NUMBER__
+  printf("cheguei aqui %d, e o valor de num_subjects é %d.\n", __LINE__, num_subjects);
+#endif
+  if(ncabs) num_cabinets = ncabs;
   vals[0] = num_documents; vals[1] = num_subjects; vals[2] = num_cabinets;
-  MPI_Bcast(vals, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+  MPI_Bcast(vals, 3, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
 	newData();
 	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_procs);
 
 	/*get document identifier*/
+#if !(__MPI_PROCS_NUMBER__ + 1)
+  printf("cheguei aqui %d\n", __LINE__);
+#endif
 	token = fstrtok(in, token, DELIMS);
 	while(token != NULL) {
 		id_temp = strtol(buffer,NULL,10);
     id_chunk = id_temp - (proc - 1) * num_docs_chunk;
 
+#if !__MPI_PROCS_NUMBER__
+  printf("cheguei aqui %d, e o valor de num_cabinets é %d e de id_temp é %d.\n", __LINE__, num_cabinets, id_temp);
+#endif
     docsCabinet[id_temp] = id_temp%num_cabinets;
+#if !__MPI_PROCS_NUMBER__
+  printf("cheguei aqui %d\n", __LINE__);
+#endif
     document = getDocument(id_chunk);
 
 		/*get subjects and add them to double average*/
