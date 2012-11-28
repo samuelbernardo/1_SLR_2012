@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99' -fopenmp
+MPIFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
 NUMNODES = 4
 NUMLAB = 11
 
@@ -14,6 +15,9 @@ docs-serial: docs-serial.c
 docs-omp: docs-omp.c
 
 docs-mpi: docs-mpi.c
+	mpicc $(MPIFLAGS) $^ -o $@
+
+docs-omp-mpi: docs-omp-mpi.c
 	mpicc $(CFLAGS) $^ -o $@
 
 docs-serial-kinst: docs-serial.c
