@@ -32,19 +32,19 @@ ren:
 
 ta: ts tp
 
-ts: t1 t2 t3
+ts: ts1 ts2 ts3
 
 tp: tp1 tp2 tp3
 
-t1: compile
+ts1: compile
 	./docs-serial sampleDocInstances/ex5-1d.in > ex5-1d.tst
 	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
 
-t2: compile
+ts2: compile
 	./docs-serial sampleDocInstances/ex10-2d.in > ex10-2d.tst
 	diff ex10-2d.tst sampleDocInstances/ex10-2d.out > ex10-2d.diff
 
-t3: compile
+ts3: compile
 	./docs-serial sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
@@ -61,8 +61,12 @@ tp3: compile
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 td0: compile
-	mpirun --host localhost -np 2 ./docs-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
+	mpirun --host localhost -np 1 ./docs-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
 	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
+	mpirun --host localhost -np 1 ./docs-mpi sampleDocInstances/ex10-2d.in > ex10-2d.tst
+	diff ex10-2d.tst sampleDocInstances/ex10-2d.out > ex10-2d.diff
+	mpirun --host localhost -np 1 ./docs-mpi sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
+	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 td1: compile
 	availableNodes $(NUMNODES) > nodeslist.txt
