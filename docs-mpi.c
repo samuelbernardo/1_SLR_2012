@@ -65,6 +65,7 @@ unsigned int num_documents;
 unsigned int num_subjects;
 unsigned int num_docs_chunk;
 unsigned int num_docs_master;
+unsigned int num_cycles;
 int proc_id, num_procs, size;
 char hostname[MPI_MAX_PROCESSOR_NAME];
 static volatile double *cabinets;
@@ -511,6 +512,8 @@ int compute_averages(int changed)
     }
   }
 
+  num_cycles++;
+
   return getCabinetMoveFlag(cabinets) == 0;
 }
 
@@ -592,6 +595,9 @@ void algorithm()
 
   compute_averages(changed);
 	do {
+#if !__MPI_TEST_MOVES__
+    printf("cheguei aqui %d (algorithm a fazer nova iteração), num_cycles = %u\n", __LINE__, num_cycles);
+#endif
 		changed = move_documents();
 	} while(compute_averages(changed));
 }
@@ -614,6 +620,9 @@ int main (int argc, char **argv)
 	printf("Process %d sends greetings from machine %s!\n", proc_id, hostname);
 #endif
 	MPI_Barrier(MPI_COMM_WORLD);
+
+  /* profiling parameters */
+  num_cycles = 0;
 
 	if(!proc_id) { //apenas executa no master
 		if(argc < 1 || argc > 3)
@@ -646,6 +655,9 @@ int main (int argc, char **argv)
 
 	/* data loaded, file closed */
 	algorithm();
+#if !__MPI_TEST_MOVES__
+  printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u\n", __LINE__, num_cycles);
+#endif
 
   /* print output */
 	/* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
