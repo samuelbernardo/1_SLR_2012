@@ -29,7 +29,8 @@
 #define __ALGORITHM_SAM__ 1
 #define __MPI_PROCESS_HELLO__ 0
 #define __MPI_PROCESS_END__ 0
-#define __MPI_PROCS_NUMBER__ 0
+#define __MPI_PROCS_NUMBER__ 1
+#define __MPI_TEST_AVERAGES__ 0
 
 /* MPI number of flags in end of cabinets array */
 #define _MPI_FLAGS_ 1
@@ -65,6 +66,7 @@ unsigned int num_docs_master;
 int proc_id, num_procs, size;
 char hostname[MPI_MAX_PROCESSOR_NAME];
 static volatile double *cabinets;
+static volatile double cabinets_local;
 static volatile DocsCab *docsCabinet;
 
 volatile double *newCabinet()
@@ -78,29 +80,29 @@ void freeCabinet(volatile double *cab)
 	free((void*)cab);
 }
 
-volatile double *getCabinetDoc(unsigned int cab)
+volatile double *getCabinetDoc(volatile double *cabs, unsigned int cab)
 {
-  return (cabinets+(cab*(num_subjects+1)-1));
+  return (cabs+(cab*(num_subjects+1)-1));
 }
 
-volatile double *getCabinetDocCounter(unsigned int cab)
+volatile double *getCabinetDocCounter(volatile double *cabs, unsigned int cab)
 {
-  return (cabinets+(cab*(num_subjects+1)+num_subjects+1-1));
+  return (cabs+(cab*(num_subjects+1)+num_subjects+1-1));
 }
 
-double getCabinetMoveFlag()
+double getCabinetMoveFlag(volatile double *cabs)
 {
-  return cabinets[num_cabinets*(num_subjects+DOCS_COUNT)];
+  return cabs[num_cabinets*(num_subjects+DOCS_COUNT)];
 }
 
-void addCabinetMoveFlag(int changed)
+void addCabinetMoveFlag(volatile double *cabs, int changed)
 {
-  cabinets[num_cabinets*(num_subjects+DOCS_COUNT)] += changed;
+  cabs[num_cabinets*(num_subjects+DOCS_COUNT)] += changed;
 }
 
-void clearCabinetMoveFlag()
+void clearCabinetMoveFlag(volatile double *cabs)
 {
-  cabinets[num_cabinets*(num_subjects+DOCS_COUNT)] = 0;
+  cabs[num_cabinets*(num_subjects+DOCS_COUNT)] = 0;
 }
 
 // data types for comm messages
@@ -154,7 +156,8 @@ void newData()
 
   allocInputBlock(num_documents, num_subjects, num_procs);
   docsCabinet = (volatile DocsCab*) malloc(sizeof(DocsCab) * num_docs_chunk);
-  cabinets = (volatile double*)newCabinet();
+  cabinets = newCabinet();
+  cabinets_local = newCabinet();
 	
   return;
 }
@@ -374,47 +377,92 @@ int compute_averages(int changed)
 {
 	unsigned int i, j, k;
 	volatile double *cabinet, *cabCounter;
-	static volatile double *cabinets_local;
+	static volatile double cabinets_local;
   volatile InputBlock *doc;
 
   if(changed) {
     for(i = 0; i < num_cabinets; i++) {
       cabinet = getCabinetDoc(i);
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (a percorrer cabinets), i = %d\n", __LINE__, i);
+#endif
 
       /* reset cabinet */
       for(k = 0; k < num_subjects; k++) {
         cabinet[k] = 0;
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (reset cabinets), k = %d\n", __LINE__, k);
+#endif
       }
       cabCounter = getCabinetDocCounter(i);
       *cabCounter = 0;
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
+#endif
 
       /* compute averages for cabinet */
       if(proc_id) {
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (compute averages), proc_id = %f\n", __LINE__, proc_id);
+#endif
         for(j = 0; j < num_docs_chunk; j++) {
           doc = getDocument(j);
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (getDocument), j = %d\n", __LINE__, j);
+#endif
           if(docsCabinet[j] == i) {
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d\n", __LINE__, docsCabinet[j]);
+#endif
             for(k = 0; k < num_subjects; k++) {
               cabinet[k] += doc[k].subj;
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (cabinet[k] += doc[k].subj), k = %d\n", __LINE__, k);
+#endif
             }
             (*cabCounter)++;
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
+#endif
           }
         }
       }
       else {
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (compute averages), proc_id = %f\n", __LINE__, proc_id);
+#endif
         for(j = 0; j < num_docs_master; j++) {
           doc = getDocument(j);
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (getDocument), j = %d\n", __LINE__, j);
+#endif
           if(docsCabinet[j] == i) {
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d\n", __LINE__, docsCabinet[j]);
+#endif
             for(k = 0; k < num_subjects; k++) {
               cabinet[k] += doc[k].subj;
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (cabinet[k] += doc[k].subj), k = %d\n", __LINE__, k);
+#endif
             }
             (*cabCounter)++;
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
+#endif
           }
         }
       }
       for(k = 0; k < num_subjects; k++) {
         cabinet[k] /= *cabCounter;
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (cabinet[k] /= *cabCounter), k = %d\n", __LINE__, k);
+#endif
       }
     }
+#if !__MPI_TEST_AVERAGES__
+  printf("cheguei aqui %d (vai para addCabinetMoveFlag(changed)), changed = %d\n", __LINE__, changed);
+#endif
     addCabinetMoveFlag(changed);
   }
 	
