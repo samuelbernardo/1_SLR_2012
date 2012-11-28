@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99' -fopenmp
 MPIFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
-NUMNODES = 4
+//NUMNODES = 4
 NUMLAB = 11
 
 recompile: clean compile
@@ -60,6 +60,10 @@ tp3: compile
 	./docs-omp sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
+td0: compile
+	mpirun --host localhost -np 2 ./docs-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
+	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
+
 td1: compile
 	availableNodes $(NUMNODES) > nodeslist.txt
 	sed -i 's/,/\n/g' nodeslist.txt
@@ -67,11 +71,15 @@ td1: compile
 	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
 
 td2: compile
-	mpirun --host \$\(getnodes $(NUMNODES)\) -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex10-2d.in > ex10-2d.tst
+	availableNodes $(NUMNODES) > nodeslist.txt
+	sed -i 's/,/\n/g' nodeslist.txt
+	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex10-2d.in > ex10-2d.tst
 	diff ex10-2d.tst sampleDocInstances/ex10-2d.out > ex10-2d.diff
 
 td3: compile
-	mpirun --host \$(getnodes $(NUMNODES)) -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
+	availableNodes $(NUMNODES) > nodeslist.txt
+	sed -i 's/,/\n/g' nodeslist.txt
+	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 testbig: tbs tbp tbd
@@ -93,11 +101,13 @@ tbp: compile
 	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
 
 tbd: compile
-	mpirun --host $(getnodes $(NUMNODES)) -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
+	availableNodes $(NUMNODES) > nodeslist.txt
+	sed -i 's/,/\n/g' nodeslist.txt
+	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
 	diff ex10m-100d.tst sampleDocInstances/ex10m-100d.out > ex10m-100d.diff
-	mpirun --host $(getnodes $(NUMNODES)) -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
+	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
 	diff ex100m-100d.tst sampleDocInstances/ex100m-100d.out > ex100m-100d.diff
-	mpirun --host $(getnodes $(NUMNODES)) -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
+	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
 	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
 
 val:
@@ -130,7 +140,7 @@ profile:
 all: recompile test
 
 clean:
-	rm -f *.o *.*~ docs-serial docs-omp docs-mpi docs-omp-mpi *.diff val.txt *.tst
+	rm -f *.o *.*~ docs-serial docs-omp docs-mpi docs-omp-mpi *.diff val.txt *.tst nodeslist.txt
 	
 clean-all:
-	rm -f *.o *.*~ docs-serial docs-omp docs-mpi docs-omp-mpi *.diff val.txt *.tst docs-omp.c.opari.inc docs-omp.mod.c docs-serial.c.opari.inc docs-serial.mod.c ex1000-50d.in.*.ompp.txt ex10-2d.in.*.ompp.txt ex5-1d.in.*.ompp.txt gmon.out opari.rc opari.tab.c ex1M-100d.in.*.ompp.txt 
+	rm -f *.o *.*~ docs-serial docs-omp docs-mpi docs-omp-mpi *.diff val.txt *.tst docs-omp.c.opari.inc docs-omp.mod.c docs-serial.c.opari.inc docs-serial.mod.c ex1000-50d.in.*.ompp.txt ex10-2d.in.*.ompp.txt ex5-1d.in.*.ompp.txt gmon.out opari.rc opari.tab.c ex1M-100d.in.*.ompp.txt nodeslist.txt 
