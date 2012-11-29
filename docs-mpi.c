@@ -31,6 +31,7 @@
 #define __MPI_PROCESS_END__ 1
 #define __MPI_PROCS_NUMBER__ 1
 #define __MPI_TEST_AVERAGES__ 1
+#define __MPI_AVERAGES_PRINT__ 0
 #define __MPI_TEST_AVERAGES_MOVEFLAG__ 1
 #define __MPI_TEST_PRINT__ 1
 #define __MPI_TEST_MOVES__ 1
@@ -472,12 +473,6 @@ int compute_averages(int changed)
           }
         }
       }
-      for(k = 0; k < num_subjects; k++) {
-        cabinet[k] /= *cabCounter;
-#if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabinet[k] /= *cabCounter), k = %d\n", __LINE__, k);
-#endif
-      }
     }
 #if !__MPI_TEST_AVERAGES_MOVEFLAG__
   printf("cheguei aqui %d (vai para addCabinetMoveFlag(changed)), changed = %d\n", __LINE__, changed);
@@ -511,14 +506,45 @@ int compute_averages(int changed)
   }
   clearCabinetMoveFlag(cabinets);
 
+#if !__MPI_AVERAGES_PRINT__
+  printf("Local Averages:\n");
+  for(i = 0; i < num_cabinets; i++) {
+    cabinet = getCabinetDoc(cabinets_local, i);
+    cabCounter = getCabinetDocCounter(cabinets, i);
+    printf("c%u n%.0f ", i, *cabCounter);
+    for(k = 0; k < num_subjects; k++) {
+      printf("%.2f ", cabinet[k]);
+    }
+    printf("\n");
+  }
+#endif
+
   /* calcule global average with the contribution of each process */
   MPI_Allreduce((void*)cabinets_local, (void*)cabinets, num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   for(i = 0; i < num_cabinets; i++) {
     cabinet = getCabinetDoc(cabinets, i);
+    cabCounter = getCabinetDocCounter(cabinets, i);
+    if(!cabCounter) continue;
     for(k = 0; k < num_subjects; k++) {
-       cabinet[k] /= num_procs;
+      cabinet[k] /= *cabCounter;
+#if !__MPI_TEST_AVERAGES__
+      printf("cheguei aqui %d (cabinet[k] /= *cabCounter), k = %d cabinet[k] = %f\n", __LINE__, k, *cabCounter);
+#endif
     }
   }
+
+#if !__MPI_AVERAGES_PRINT__
+  printf("Global Averages:\n");
+  for(i = 0; i < num_cabinets; i++) {
+    cabinet = getCabinetDoc(cabinets, i);
+    cabCounter = getCabinetDocCounter(cabinets, i);
+    printf("c%u n%.0f ", i, *cabCounter);
+    for(k = 0; k < num_subjects; k++) {
+      printf("%.2f ", cabinet[k]);
+    }
+    printf("\n");
+  }
+#endif
 
   num_cycles++;
 
