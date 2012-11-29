@@ -43,6 +43,7 @@
 #define DOCS_TAG 101
 #define SCORE_TAG 102
 #define CAB_TAG 103
+#define SUBJS_TAG 104
 
 /* fiels for docs count */
 #define DOCS_COUNT 1
@@ -169,7 +170,8 @@ void newData()
 #if !__MPI_PROCS_NUMBER__
   printf("total de processos: %d\n", num_procs);
 #endif
-  num_docs_chunk = num_documents/num_procs;
+  if(num_documents%num_procs) num_docs_chunk = num_documents/num_procs + 1;
+  else num_docs_chunk = num_documents/num_procs;
 
   allocInputBlock(num_documents, num_subjects, num_procs);
   docsCabinet = (volatile DocsCab*) malloc(sizeof(DocsCab) * num_docs_chunk);
@@ -207,7 +209,7 @@ void data_printDocuments()
     docsCabAll = (DocsCab *)malloc(sizeof(DocsCab)*num_documents);
     docGlobalId = 0;
     for(n=1; n < num_procs; n++) {
-      MPI_Recv(docsCabAll, num_docs_chunk, MPI_UNSIGNED, n, CAB_TAG, MPI_COMM_WORLD, &status);
+      MPI_Recv(docsCabAll, num_docs_chunk*num_subjects, MPI_UNSIGNED, n, CAB_TAG, MPI_COMM_WORLD, &status);
       for(i = 0; i < num_docs_chunk; i++) {
         printf("%u %u\n", docGlobalId++, docsCabAll[i]);
       }
@@ -378,12 +380,13 @@ void load_data(FILE *in, unsigned int ncabs)
       }
       if(num_procs > 1 && proc < num_procs) {
         if(procData == procData1) {
-          //MPI_Isend((void*)procData2, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
-          MPI_Send((void*)procData1, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD);
+          //MPI_Isend((void*)procData1, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
+          MPI_Send((void*)procData1, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, SUBJS_TAG, MPI_COMM_WORLD);
+          MPI_Send((void*)docsCabinet, num_docs_chunk, MPI_UNSIGNED, proc, DOCS_TAG, MPI_COMM_WORLD);
 #if !__MPI_AVERAGES_PRINT__
     volatile InputBlock *docs = procData1;
     printf("receiveDocuments: procData1 enviada\n");
-    for(z=0; z < num_docs_chunk; z++) {
+    for(z=0; z < num_docs_chunk*num_subjects; z++) {
       printf("%.2f ", docs[z]);
     }
     printf("\n");
@@ -392,12 +395,12 @@ void load_data(FILE *in, unsigned int ncabs)
           procData = procData2;
         }
         else {
-          //MPI_Isend((void*)procData1, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
-          MPI_Send((void*)procData2, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD);
+          //MPI_Isend((void*)procData2, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
+          MPI_Send((void*)procData2, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD);
 #if !__MPI_AVERAGES_PRINT__
     volatile InputBlock *docs = procData2;
     printf("load_data: procData2 enviada\n");
-    for(z=0; z < num_docs_chunk; z++) {
+    for(z=0; z < num_docs_chunk*num_subjects; z++) {
       printf("%.2f ", docs[z]);
     }
     printf("\n");
@@ -429,18 +432,18 @@ void receiveDocuments()
     num_documents = vals[0];
     num_subjects = vals[1];
     num_cabinets = vals[2];
-    num_docs_chunk = num_documents*num_subjects/num_procs;
     newData();
 #if !__MPI_AVERAGES_PRINT__
     printf("receiveDocuments: docs = %u \t subj = %u \t cabs = %u \t num_docs_chunk = %u\n", num_documents, num_subjects, num_cabinets, num_docs_chunk);
 #endif
 
-		MPI_Recv((void*)procData, num_docs_chunk, MPI_DOUBLE, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
+		MPI_Recv((void*)procData, num_docs_chunk*num_subjects, MPI_DOUBLE, 0, SUBJS_TAG, MPI_COMM_WORLD, &status);
+		MPI_Recv((void*)docsCabinet, num_docs_chunk, MPI_UNSIGNED, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
 
 #if !__MPI_AVERAGES_PRINT__
     volatile InputBlock *docs = procData;
     printf("receiveDocuments: procData recebida\n");
-    for(z=0; z < num_docs_chunk; z++) {
+    for(z=0; z < num_docs_chunk*num_subjects; z++) {
       printf("%.2f ", docs[z]);
     }
     printf("\n");

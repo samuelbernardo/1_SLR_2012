@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99' -fopenmp
 MPIFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
-//NUMNODES = 4
+NUMNODES = 1
 NUMPROCS = 1
 NUMLAB = 11
 
