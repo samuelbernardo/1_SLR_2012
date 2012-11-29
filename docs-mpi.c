@@ -76,6 +76,8 @@ static volatile double *cabinets;
 static volatile double *cabinets_local;
 static volatile DocsCab *docsCabinet;
 
+unsigned int z, y;
+
 volatile double *newCabinet()
 {
 	volatile double *cab = (volatile double*) malloc(sizeof(double)*(num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_));
@@ -113,16 +115,25 @@ void clearCabinetMoveFlag(volatile double *cabs)
 }
 
 // data types for comm messages
-typedef union block {
+/*typedef union block {
 	unsigned int num;
 	double subj;
-} InputBlock;
+} InputBlock;*/
+typedef double InputBlock;
 
 static volatile InputBlock *procData;
+static volatile InputBlock *procData1;
+static volatile InputBlock *procData2;
 
 void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
 {
-	procData = (InputBlock *)malloc(sizeof(InputBlock)*(docs*subjs/procs));
+  if(proc_id) {
+	  procData = (InputBlock *)malloc(sizeof(InputBlock)*(docs*subjs/procs));
+  }
+  else {
+    procData1 = (InputBlock *)malloc(sizeof(InputBlock)*(docs*subjs/procs));
+    procData2 = (InputBlock *)malloc(sizeof(InputBlock)*(docs*subjs/procs));
+  }
 }
 
 volatile InputBlock *getDocument(unsigned int doc)
@@ -132,17 +143,16 @@ volatile InputBlock *getDocument(unsigned int doc)
 
 double getSubject(unsigned int subjPos, volatile InputBlock *document)
 {
-  return document[subjPos].subj;
+  return document[subjPos];
 }
 
-void clear_documents()
+void clear_documents(volatile InputBlock *doc)
 {
-  volatile InputBlock *doc = procData;
   unsigned int i, j;
 
   for(i=0; i < num_docs_chunk; i++) {
     for(j=0; j < num_subjects; j++) {
-      doc[i*num_subjects+j].subj = 0;
+      doc[i*num_subjects+j] = 0;
     }
   }
 }
@@ -306,7 +316,7 @@ cont:
 /* Parses the input (.in) file and creates all data according to its contents */
 void load_data(FILE *in, unsigned int ncabs)
 {
-  volatile InputBlock *document;
+  volatile InputBlock *document, *procDataOld;
 
 	unsigned int id_temp = 0, id_chunk;
 	unsigned int i, proc = 1, vals[3];
@@ -331,6 +341,7 @@ void load_data(FILE *in, unsigned int ncabs)
 
 	newData();
 	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_procs);
+  procData = procData1;
 
 	/*get document identifier*/
 #if !(__MPI_PROCS_NUMBER__ + 1)
@@ -358,13 +369,44 @@ void load_data(FILE *in, unsigned int ncabs)
 				printf("\nload_data: found null token when searching for new subjects!\n");
 				exit(1);
 			}
-      document[i].subj = strtod(token,NULL);
+      document[i] = strtod(token,NULL);
 		}
     if(!proc_id && id_chunk == num_docs_chunk - 1) {
-      if(proc > 1) MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
-      if(num_procs > 1 && proc < num_procs) MPI_Isend((void*)procData, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
+      if(proc > 1) {
+        //MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
+        if(proc < num_procs) clear_documents(procDataOld);
+      }
+      if(num_procs > 1 && proc < num_procs) {
+        if(procData == procData1) {
+          //MPI_Isend((void*)procData2, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
+          MPI_Send((void*)procData1, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD);
+#if !__MPI_AVERAGES_PRINT__
+    volatile InputBlock *docs = procData1;
+    printf("receiveDocuments: procData1 enviada\n");
+    for(z=0; z < num_docs_chunk; z++) {
+      printf("%.2f ", docs[z]);
+    }
+    printf("\n");
+#endif
+          procDataOld = procData;
+          procData = procData2;
+        }
+        else {
+          //MPI_Isend((void*)procData1, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
+          MPI_Send((void*)procData2, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD);
+#if !__MPI_AVERAGES_PRINT__
+    volatile InputBlock *docs = procData2;
+    printf("load_data: procData2 enviada\n");
+    for(z=0; z < num_docs_chunk; z++) {
+      printf("%.2f ", docs[z]);
+    }
+    printf("\n");
+#endif
+          procDataOld = procData;
+          procData = procData1;
+        }
+      }
       if(++proc == num_procs) {
-        clear_documents();
         num_docs_master = num_documents - 1 - id_temp;
       }
     }
@@ -389,10 +431,23 @@ void receiveDocuments()
     num_cabinets = vals[2];
     num_docs_chunk = num_documents*num_subjects/num_procs;
     newData();
+#if !__MPI_AVERAGES_PRINT__
+    printf("receiveDocuments: docs = %u \t subj = %u \t cabs = %u \t num_docs_chunk = %u\n", num_documents, num_subjects, num_cabinets, num_docs_chunk);
+#endif
 
 		MPI_Recv((void*)procData, num_docs_chunk, MPI_DOUBLE, 0, DOCS_TAG, MPI_COMM_WORLD, &status);
+
+#if !__MPI_AVERAGES_PRINT__
+    volatile InputBlock *docs = procData;
+    printf("receiveDocuments: procData recebida\n");
+    for(z=0; z < num_docs_chunk; z++) {
+      printf("%.2f ", docs[z]);
+    }
+    printf("\n");
+#endif
 	}
 }
+
 
 int compute_averages(int changed)
 {
@@ -435,9 +490,9 @@ int compute_averages(int changed)
   printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d\n", __LINE__, docsCabinet[j]);
 #endif
             for(k = 0; k < num_subjects; k++) {
-              cabinet[k] += doc[k].subj;
+              cabinet[k] += doc[k];
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabinet[k] += doc[k].subj), k = %d\n", __LINE__, k);
+  printf("cheguei aqui %d (cabinet[k] += doc[k]), k = %d\n", __LINE__, k);
 #endif
             }
             (*cabCounter)++;
@@ -461,9 +516,9 @@ int compute_averages(int changed)
   printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d\n", __LINE__, docsCabinet[j]);
 #endif
             for(k = 0; k < num_subjects; k++) {
-              cabinet[k] += doc[k].subj;
+              cabinet[k] += doc[k];
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabinet[k] += doc[k].subj), k = %d\n", __LINE__, k);
+  printf("cheguei aqui %d (cabinet[k] += doc[k]), k = %d\n", __LINE__, k);
 #endif
             }
             (*cabCounter)++;
@@ -507,20 +562,43 @@ int compute_averages(int changed)
   clearCabinetMoveFlag(cabinets);
 
 #if !__MPI_AVERAGES_PRINT__
-  printf("Local Averages:\n");
-  for(i = 0; i < num_cabinets; i++) {
-    cabinet = getCabinetDoc(cabinets_local, i);
-    cabCounter = getCabinetDocCounter(cabinets, i);
-    printf("c%u n%.0f ", i, *cabCounter);
-    for(k = 0; k < num_subjects; k++) {
-      printf("%.2f ", cabinet[k]);
+  printf("Local Averages: (%d)\n", proc_id);
+  for(z = 0; z < num_cabinets; z++) {
+    cabinet = getCabinetDoc(cabinets_local, z);
+    cabCounter = getCabinetDocCounter(cabinets, z);
+    printf("c%u n%.0f ", z, *cabCounter);
+    for(y = 0; y < num_subjects; y++) {
+      printf("%.2f ", cabinet[y]);
     }
     printf("\n");
   }
+
+  printf("Local Averages0: (%d)\n", proc_id);
+  cabinet = cabinets_local;
+  for(z = 0; z < num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_; z++) {
+    printf("%.2f ", cabinet[z]);
+  }
+  printf("\n");
+
+  printf("Global Averages0: (%d)\n", proc_id);
+  cabinet = cabinets;
+  for(z = 0; z < num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_; z++) {
+    printf("%.2f ", cabinet[z]);
+  }
+  printf("\n");
 #endif
 
   /* calcule global average with the contribution of each process */
+	MPI_Barrier(MPI_COMM_WORLD);
   MPI_Allreduce((void*)cabinets_local, (void*)cabinets, num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#if !__MPI_AVERAGES_PRINT__
+  printf("Global Averages1: (%d)\n", proc_id);
+  cabinet = cabinets;
+  for(z = 0; z < num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_; z++) {
+    printf("%.2f ", cabinet[z]);
+  }
+  printf("\n");
+#endif
   for(i = 0; i < num_cabinets; i++) {
     cabinet = getCabinetDoc(cabinets, i);
     cabCounter = getCabinetDocCounter(cabinets, i);
@@ -534,13 +612,13 @@ int compute_averages(int changed)
   }
 
 #if !__MPI_AVERAGES_PRINT__
-  printf("Global Averages:\n");
-  for(i = 0; i < num_cabinets; i++) {
-    cabinet = getCabinetDoc(cabinets, i);
-    cabCounter = getCabinetDocCounter(cabinets, i);
-    printf("c%u n%.0f ", i, *cabCounter);
-    for(k = 0; k < num_subjects; k++) {
-      printf("%.2f ", cabinet[k]);
+  printf("Global Averages2: (%d)\n", proc_id);
+  for(z = 0; z < num_cabinets; z++) {
+    cabinet = getCabinetDoc(cabinets, z);
+    cabCounter = getCabinetDocCounter(cabinets, z);
+    printf("c%u n%.0f ", z, *cabCounter);
+    for(y = 0; y < num_subjects; y++) {
+      printf("%.2f ", cabinet[y]);
     }
     printf("\n");
   }
@@ -573,7 +651,7 @@ int move_documents()
         dist = 0;
         cabinet = getCabinetDoc(cabinets, j);
         for(k = 0; k < num_subjects; k++) {
-          coord = document[k].subj - cabinet[k];
+          coord = document[k] - cabinet[k];
           dist += coord * coord;
         }
         if(dist < shortest) {
@@ -601,7 +679,7 @@ int move_documents()
         dist = 0;
         cabinet = getCabinetDoc(cabinets, j);
         for(k = 0; k < num_subjects; k++) {
-          coord = document[k].subj - cabinet[k];
+          coord = document[k] - cabinet[k];
           dist += coord * coord;
         }
         if(dist < shortest) {
