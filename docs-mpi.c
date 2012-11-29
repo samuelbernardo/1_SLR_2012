@@ -46,6 +46,8 @@
 /* fiels for docs count */
 #define DOCS_COUNT 1
 
+/* limit of cycles when running the algorithm */
+#define __NUM_CYCLES_LIMIT__ 100
 
 /* Document class */
 /*typedef struct document {
@@ -208,7 +210,7 @@ void data_printDocuments()
     free(docsCabAll);
   }
 #if !__MPI_TEST_PRINT__
-  printf("cheguei aqui %d - acabou de imprimir!\n", __LINE__);
+  printf("cheguei aqui %d no proc_id %d - acabou de imprimir!\n", __LINE__, proc_id);
 #endif
 }
 
@@ -611,7 +613,7 @@ void algorithm()
     printf("cheguei aqui %d (algorithm a fazer nova iteração), num_cycles = %u\n", __LINE__, num_cycles);
 #endif
 		changed = move_documents();
-	} while(compute_averages(changed) && num_cycles < 100);
+	} while(compute_averages(changed) && num_cycles < __NUM_CYCLES_LIMIT__);
 }
 
 
