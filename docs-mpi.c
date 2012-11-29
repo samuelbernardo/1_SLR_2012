@@ -31,6 +31,7 @@
 #define __MPI_PROCESS_END__ 1
 #define __MPI_PROCS_NUMBER__ 1
 #define __MPI_TEST_AVERAGES__ 1
+#define __MPI_TEST_AVERAGES_MOVEFLAG__ 1
 #define __MPI_TEST_PRINT__ 1
 #define __MPI_TEST_MOVES__ 1
 
@@ -358,7 +359,7 @@ void load_data(FILE *in, unsigned int ncabs)
 		}
     if(!proc_id && id_chunk == num_docs_chunk - 1) {
       if(proc > 1) MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
-      if(num_procs > 1) MPI_Isend((void*)procData, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
+      if(num_procs > 1 && proc < num_procs) MPI_Isend((void*)procData, num_docs_chunk, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
       if(++proc == num_procs) {
         clear_documents();
         num_docs_master = num_documents - 1 - id_temp;
@@ -476,10 +477,14 @@ int compute_averages(int changed)
 #endif
       }
     }
-#if !__MPI_TEST_AVERAGES__
+#if !__MPI_TEST_AVERAGES_MOVEFLAG__
   printf("cheguei aqui %d (vai para addCabinetMoveFlag(changed)), changed = %d\n", __LINE__, changed);
 #endif
+    clearCabinetMoveFlag(cabinets_local);
     addCabinetMoveFlag(cabinets_local, changed);
+  }
+  else {
+    clearCabinetMoveFlag(cabinets_local);
   }
 	
   /* reset global averages array */
@@ -502,6 +507,7 @@ int compute_averages(int changed)
     printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
 #endif
   }
+  clearCabinetMoveFlag(cabinets);
 
   /* calcule global average with the contribution of each process */
   MPI_Allreduce((void*)cabinets_local, (void*)cabinets, num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -514,7 +520,10 @@ int compute_averages(int changed)
 
   num_cycles++;
 
-  return getCabinetMoveFlag(cabinets) == 0;
+#if !__MPI_TEST_AVERAGES_MOVEFLAG__
+    printf("cheguei aqui %d (averages return), num_cycles = %u \t getCabinetMoveFlag(cabinets) = %f \t getCabinetMoveFlag(cabinets_local) = %f\n", __LINE__, num_cycles-1, getCabinetMoveFlag(cabinets), getCabinetMoveFlag(cabinets_local));
+#endif
+  return getCabinetMoveFlag(cabinets) != 0;
 }
 
 
@@ -585,6 +594,9 @@ int move_documents()
     }
   }
 
+#if !__MPI_TEST_MOVES__
+  printf("cheguei aqui %d (return de mudar documento de cabinet), changed = %d\n", __LINE__, changed);
+#endif
 	return changed;
 }
 
@@ -599,7 +611,7 @@ void algorithm()
     printf("cheguei aqui %d (algorithm a fazer nova iteração), num_cycles = %u\n", __LINE__, num_cycles);
 #endif
 		changed = move_documents();
-	} while(compute_averages(changed));
+	} while(compute_averages(changed) && num_cycles < 100);
 }
 
 

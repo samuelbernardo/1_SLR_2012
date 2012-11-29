@@ -2,6 +2,7 @@ CC = gcc
 CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99' -fopenmp
 MPIFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
 //NUMNODES = 4
+NUMPROCS = 1
 NUMLAB = 11
 
 recompile: clean compile
@@ -61,11 +62,11 @@ tp3: compile
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 td0: compile
-#	mpirun --host localhost -np 1 ./docs-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
-#	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
-	mpirun --host localhost -np 1 ./docs-mpi sampleDocInstances/ex10-2d.in > ex10-2d.tst
+	mpirun --host localhost -np $(NUMPROCS) ./docs-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
+	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
+	mpirun --host localhost -np $(NUMPROCS) ./docs-mpi sampleDocInstances/ex10-2d.in > ex10-2d.tst
 	diff ex10-2d.tst sampleDocInstances/ex10-2d.out > ex10-2d.diff
-	mpirun --host localhost -np 1 ./docs-mpi sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
+	mpirun --host localhost -np $(NUMPROCS) ./docs-mpi sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 td1: compile

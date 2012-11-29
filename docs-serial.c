@@ -27,6 +27,7 @@
 #define _TESTAUX2_ 1
 #define _TESTAUX3_ 1
 #define __ALGORITHM_SAM__ 0
+#define __TEST_MOVE_CYCLES__ 0
 
 /* Document class */
 typedef struct document {
@@ -87,6 +88,7 @@ typedef struct data {
 unsigned int num_cabinets;
 unsigned int num_documents;
 unsigned int num_subjects;
+unsigned int num_cycles;
 static volatile Document **documents;
 static volatile Cabinet **cabinets;
 
@@ -284,6 +286,8 @@ void compute_averages() {
 			cabinets[i]->average[k] /= (double)cabinets[i]->ndocs;
 		}
 	}
+
+  num_cycles++;
 }
 
 double powa(double d1) {
@@ -338,6 +342,8 @@ int main (int argc, char **argv)
 
 	omp_set_num_threads(1);
 
+  num_cycles = 0;
+
 	if(argc < 1 || argc > 3)
 	{
 		printf("[argc] Incorrect Number of arguments.\n");
@@ -361,6 +367,10 @@ int main (int argc, char **argv)
 	algorithm(data);
 	time = omp_get_wtime() - time;
 	data_printDocuments();
+
+#if !__TEST_MOVE_CYCLES__
+  printf("linha %d - numero de ciclos efectuados num_cycles = %u\n", __LINE__, num_cycles);
+#endif
 
 	/*printf("documents post-processing\n");
 	data_printCabinets(data);*/
