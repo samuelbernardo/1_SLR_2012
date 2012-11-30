@@ -9,7 +9,7 @@ NUMLAB = 11
 
 recompile: clean compile
 
-compile: docs-serial docs-mpi
+compile: docs-serial docs-mpi docs-omp-mpi
 
 kinst: docs-serial-kinst docs-omp-kinst ren
 

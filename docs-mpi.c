@@ -49,7 +49,8 @@
 #define DOCS_COUNT 1
 
 /* limit of cycles when running the algorithm */
-#define __NUM_CYCLES_LIMIT__ 100
+#define __NUM_CYCLES_LIMIT__ 10000
+#define ISEND_BUFFER_SIZE 2
 
 /* Document class */
 /*typedef struct document {
@@ -124,8 +125,7 @@ void clearCabinetMoveFlag(volatile double *cabs)
 typedef double InputBlock;
 
 static volatile InputBlock *procData;
-static volatile InputBlock *procData1;
-static volatile InputBlock *procData2;
+//static volatile InputBlock *procDataBuffer;
 
 void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
 {
@@ -133,8 +133,9 @@ void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
 	  procData = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
   }
   else {
-    procData1 = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
-    procData2 = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
+    procData = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
+    /*procDataBuffer = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)*ISEND_BUFFER_SIZE));
+    MPI_Buffer_attach((void*)procDataBuffer, sizeof(InputBlock)*(subjs*(docs/procs)*ISEND_BUFFER_SIZE));*/
   }
 }
 
@@ -185,8 +186,7 @@ void newData()
 void freeData()
 {
   free((void*)procData);
-  free((void*)procData1);
-  free((void*)procData2);
+  //free((void*)procDataBuffer);
 
   free((void*)docsCabinet);
 	
@@ -358,7 +358,6 @@ void load_data(FILE *in, unsigned int ncabs)
 
 	newData();
 	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_procs);
-  procData = procData1;
 
 	/*get document identifier*/
 #if !(__MPI_PROCS_NUMBER__ + 1)
@@ -392,18 +391,18 @@ void load_data(FILE *in, unsigned int ncabs)
 #if !__MPI_AVERAGES_PRINT__
       printf("cheguei aqui %d (load_data: proc == num_procs), proc = %d, proc_id = %d\n", __LINE__, proc, proc_id);
 #endif
+      MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
     }
     else if(id_chunk == num_docs_chunk - 1) {
       if(proc > 1) {
 #if !__MPI_AVERAGES_PRINT__
   printf("cheguei aqui %d (load_data: proc > 1), proc = %d, proc_id = %d\n", __LINE__, proc, proc_id);
 #endif
-        //MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
-        //if(proc < num_procs) clear_documents(procDataOld);
-        //else if(proc == num_procs) {
+        MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
       }
       if(num_procs > 1 && proc < num_procs) {
         MPI_Send((void*)procData, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, SUBJS_TAG, MPI_COMM_WORLD);
+        //MPI_Ibsend((void*)procData, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
         MPI_Send((void*)docsCabinet, num_docs_chunk, MPI_UNSIGNED, proc, DOCS_TAG, MPI_COMM_WORLD);
 #if !__MPI_AVERAGES_PRINT__
     volatile InputBlock *docs = procData;
@@ -413,34 +412,6 @@ void load_data(FILE *in, unsigned int ncabs)
     }
     printf("\n");
 #endif
-        /*if(procData == procData1) {
-          //MPI_Isend((void*)procData1, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
-          MPI_Send((void*)procData1, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, SUBJS_TAG, MPI_COMM_WORLD);
-          MPI_Send((void*)docsCabinet, num_docs_chunk, MPI_UNSIGNED, proc, DOCS_TAG, MPI_COMM_WORLD);
-#if !__MPI_AVERAGES_PRINT__
-    volatile InputBlock *docs = procData1;
-    printf("receiveDocuments: procData1 enviada\n");
-    for(z=0; z < num_docs_chunk*num_subjects; z++) {
-      printf("%.2f ", docs[z]);
-    }
-    printf("\n");
-#endif
-          procData = procData2;
-        }
-        else {
-          //MPI_Isend((void*)procData2, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD, &docScoresRequest[proc]);
-          MPI_Send((void*)procData2, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, DOCS_TAG, MPI_COMM_WORLD);
-          MPI_Send((void*)docsCabinet, num_docs_chunk, MPI_UNSIGNED, proc, DOCS_TAG, MPI_COMM_WORLD);
-#if !__MPI_AVERAGES_PRINT__
-    volatile InputBlock *docs = procData2;
-    printf("load_data: procData2 enviada\n");
-    for(z=0; z < num_docs_chunk*num_subjects; z++) {
-      printf("%.2f ", docs[z]);
-    }
-    printf("\n");
-#endif
-          procData = procData1;
-        }*/
       }
       if(++proc == num_procs) {
         num_docs_master = num_documents - 1 - id_temp;
@@ -772,6 +743,8 @@ int main (int argc, char **argv)
 	FILE *in;
 	unsigned int ncabs;
 	double time;
+  /*volatile InputBlock *bptr;
+  int bl;*/
 
 
 	MPI_Init(&argc, &argv);
@@ -828,24 +801,28 @@ int main (int argc, char **argv)
 
 		fclose(in);
 	}
-	
-	/* receive documents for each process */
-	if(proc_id) {
-		receiveDocuments();
-	}
 
-	MPI_Barrier (MPI_COMM_WORLD);
-	/* data loaded, file closed */
-	algorithm();
+  if(proc_id <= num_procs) {
+    /* receive documents for each process */
+    if(proc_id) {
+      receiveDocuments();
+    }
+
+    MPI_Barrier (MPI_COMM_WORLD);
+    /* data loaded, file closed */
+    algorithm();
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
+    printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
 #endif
 
-  /* print output */
-	/* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
-	MPI_Barrier (MPI_COMM_WORLD);
-	data_printDocuments();
+    /* print output */
+    /* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
+    MPI_Barrier (MPI_COMM_WORLD);
+    data_printDocuments();
 
+  }
+
+  //if(!proc_id) MPI_Buffer_detach(&bptr, &bl);
 	MPI_Barrier (MPI_COMM_WORLD);
 	//time = omp_get_wtime() - time;
 	if(!proc_id)	time += MPI_Wtime();

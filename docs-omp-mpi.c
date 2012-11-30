@@ -50,7 +50,7 @@
 #define DOCS_COUNT 1
 
 /* limit of cycles when running the algorithm */
-#define __NUM_CYCLES_LIMIT__ 100
+#define __NUM_CYCLES_LIMIT__ 10000
 
 /* Document class */
 /*typedef struct document {
@@ -125,8 +125,7 @@ void clearCabinetMoveFlag(volatile double *cabs)
 typedef double InputBlock;
 
 static volatile InputBlock *procData;
-static volatile InputBlock *procData1;
-static volatile InputBlock *procData2;
+static volatile InputBlock *procDataBuffer;
 
 void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
 {
@@ -134,8 +133,8 @@ void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
 	  procData = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
   }
   else {
-    procData1 = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
-    procData2 = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
+    procData = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
+    procDataBuffer = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
   }
 }
 
@@ -186,8 +185,7 @@ void newData()
 void freeData()
 {
   free((void*)procData);
-  free((void*)procData1);
-  free((void*)procData2);
+  free((void*)procDataBuffer);
 
   free((void*)docsCabinet);
 	
@@ -359,7 +357,6 @@ void load_data(FILE *in, unsigned int ncabs)
 
 	newData();
 	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_procs);
-  procData = procData1;
 
 	/*get document identifier*/
 #if !(__MPI_PROCS_NUMBER__ + 1)
@@ -836,22 +833,25 @@ int main (int argc, char **argv)
 		fclose(in);
 	}
 	
-	/* receive documents for each process */
-	if(proc_id) {
-		receiveDocuments();
-	}
+  if(proc_id <= num_procs) {
+    /* receive documents for each process */
+    if(proc_id) {
+      receiveDocuments();
+    }
 
-	MPI_Barrier (MPI_COMM_WORLD);
-	/* data loaded, file closed */
-	algorithm();
+    MPI_Barrier (MPI_COMM_WORLD);
+    /* data loaded, file closed */
+    algorithm();
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
+    printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
 #endif
 
-  /* print output */
-	/* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
-	MPI_Barrier (MPI_COMM_WORLD);
-	data_printDocuments();
+    /* print output */
+    /* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
+    MPI_Barrier (MPI_COMM_WORLD);
+    data_printDocuments();
+
+  }
 
 	MPI_Barrier (MPI_COMM_WORLD);
 	//time = omp_get_wtime() - time;
