@@ -398,7 +398,7 @@ void load_data(FILE *in, unsigned int ncabs)
 #if !__MPI_AVERAGES_PRINT__
   printf("cheguei aqui %d (load_data: proc > 1), proc = %d, proc_id = %d\n", __LINE__, proc, proc_id);
 #endif
-        MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
+        //MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
       }
       if(num_procs > 1 && proc < num_procs) {
         MPI_Send((void*)procData, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, SUBJS_TAG, MPI_COMM_WORLD);
