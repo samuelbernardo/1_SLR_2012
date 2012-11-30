@@ -2,6 +2,7 @@ CC = gcc
 CFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99' -fopenmp
 #MPIFLAGS = -g -pg -Wall -pedantic -fno-pie -std='c99'
 MPIFLAGS = -Wall -pedantic -std='c99'
+MPIOMPFLAGS = -Wall -pedantic -std='c99' -fopenmp
 NUMNODES = 1
 NUMPROCS = 1
 NUMLAB = 11
@@ -20,7 +21,7 @@ docs-mpi: docs-mpi.c
 	mpicc $(MPIFLAGS) $^ -o $@
 
 docs-omp-mpi: docs-omp-mpi.c
-	mpicc $(CFLAGS) $^ -o $@
+	mpicc $(MPIOMPFLAGS) $^ -o $@
 
 docs-serial-kinst: docs-serial.c
 	kinst-ompp $(CC) $(CFLAGS) $^ -o $@
@@ -86,6 +87,14 @@ td3: compile
 	availableNodes $(NUMNODES) > nodeslist.txt
 	sed -i 's/,/\n/g' nodeslist.txt
 	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
+	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
+
+tpd0: compile
+#	mpirun --host localhost -np $(NUMPROCS) ./docs-omp-mpi sampleDocInstances/ex5-1d.in > ex5-1d.tst
+#	diff ex5-1d.tst sampleDocInstances/ex5-1d.out > ex5-1d.diff
+	mpirun --host localhost -np $(NUMPROCS) ./docs-omp-mpi sampleDocInstances/ex10-2d.in > ex10-2d.tst
+	diff ex10-2d.tst sampleDocInstances/ex10-2d.out > ex10-2d.diff
+	mpirun --host localhost -np $(NUMPROCS) ./docs-omp-mpi sampleDocInstances/ex1000-50d.in > ex1000-50d.tst
 	diff ex1000-50d.tst sampleDocInstances/ex1000-50d.out > ex1000-50d.diff
 
 testbig: tbs tbp tbd

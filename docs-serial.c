@@ -26,8 +26,8 @@
 #define _TESTAUX1_ 1
 #define _TESTAUX2_ 1
 #define _TESTAUX3_ 1
-#define __ALGORITHM_SAM__ 0
-#define __TEST_MOVE_CYCLES__ 0
+#define __ALGORITHM_SAM__ 1
+#define __TEST_MOVE_CYCLES__ 1
 
 /* Document class */
 typedef struct document {
