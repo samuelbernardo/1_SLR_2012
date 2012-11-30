@@ -30,11 +30,11 @@
 #define __MPI_PROCESS_HELLO__ 1
 #define __MPI_PROCESS_END__ 1
 #define __MPI_PROCS_NUMBER__ 1
-#define __MPI_TEST_AVERAGES__ 0
-#define __MPI_AVERAGES_PRINT__ 0
-#define __MPI_TEST_AVERAGES_MOVEFLAG__ 0
-#define __MPI_TEST_PRINT__ 0
-#define __MPI_TEST_MOVES__ 0
+#define __MPI_TEST_AVERAGES__ 1
+#define __MPI_AVERAGES_PRINT__ 1
+#define __MPI_TEST_AVERAGES_MOVEFLAG__ 1
+#define __MPI_TEST_PRINT__ 1
+#define __MPI_TEST_MOVES__ 1
 
 /* MPI number of flags in end of cabinets array */
 #define _MPI_FLAGS_ 1
@@ -73,6 +73,7 @@ unsigned int num_docs_master;
 unsigned int num_cycles;
 int proc_id, num_procs, size;
 char hostname[MPI_MAX_PROCESSOR_NAME];
+char *filename;
 static volatile double *cabinets;
 static volatile double *cabinets_local;
 static volatile DocsCab *docsCabinet;
@@ -197,6 +198,7 @@ void data_printDocuments()
 	unsigned int i, n, docGlobalId;
   DocsCab *docsCabAll;
   MPI_Status status;
+  FILE *out;
 
   if(proc_id) {
 #if !__MPI_TEST_PRINT__
@@ -208,20 +210,28 @@ void data_printDocuments()
 #if !__MPI_TEST_PRINT__
   printf("cheguei aqui %d (print results from master), proc_id = %d\n", __LINE__, proc_id);
 #endif
+	if((out = fopen(filename, "w")) == NULL) {
+		printf("[fopen-read] Cannot open file to read.\n");
+		exit(EXIT_FAILURE);
+	}
+    
     docsCabAll = (DocsCab *)malloc(sizeof(DocsCab)*num_docs_chunk);
     docGlobalId = 0;
     for(n=1; n < num_procs; n++) {
       MPI_Recv(docsCabAll, num_docs_chunk, MPI_UNSIGNED, n, CAB_TAG, MPI_COMM_WORLD, &status);
       for(i = 0; i < num_docs_chunk; i++) {
-        printf("%u %u\n", docGlobalId++, docsCabAll[i]);
+        printf("%u %u\n", docGlobalId, docsCabAll[i]);
+        fprintf(out, "%u %u\n", docGlobalId++, docsCabAll[i]);
       }
     }
 #if !__MPI_TEST_PRINT__
   printf("cheguei aqui %d (master - verificar num_docs_master), num_docs_master = %d\n", __LINE__, num_docs_master);
 #endif
     for(i=0; i < num_docs_master; i++) {
-      printf("%u %u\n", docGlobalId++, docsCabinet[i]);
+      printf("%u %u\n", docGlobalId, docsCabinet[i]);
+      fprintf(out, "%u %u\n", docGlobalId++, docsCabinet[i]);
     }
+    fclose(out);
     free(docsCabAll);
   }
 #if !__MPI_TEST_PRINT__
@@ -378,17 +388,19 @@ void load_data(FILE *in, unsigned int ncabs)
 			}
       document[i] = strtod(token,NULL);
 		}
-    if(!proc_id && id_chunk == num_docs_chunk - 1) {
+    if(proc == num_procs) {
+#if !__MPI_AVERAGES_PRINT__
+      printf("cheguei aqui %d (load_data: proc == num_procs), proc = %d, proc_id = %d\n", __LINE__, proc, proc_id);
+#endif
+    }
+    else if(id_chunk == num_docs_chunk - 1) {
       if(proc > 1) {
+#if !__MPI_AVERAGES_PRINT__
+  printf("cheguei aqui %d (load_data: proc > 1), proc = %d, proc_id = %d\n", __LINE__, proc, proc_id);
+#endif
         //MPI_Wait(&docScoresRequest[proc-1], &docScoresStatus);
         //if(proc < num_procs) clear_documents(procDataOld);
         //else if(proc == num_procs) {
-        if(proc == num_procs) {
-          //free((void*)procData);
-	        procData = (InputBlock *)malloc(sizeof(InputBlock)*(num_subjects*num_docs_master));
-          free((void*)docsCabinet);
-          docsCabinet = (volatile DocsCab*) malloc(sizeof(DocsCab) * num_docs_master);
-        }
       }
       if(num_procs > 1 && proc < num_procs) {
         MPI_Send((void*)procData, num_docs_chunk*num_subjects, MPI_DOUBLE, proc, SUBJS_TAG, MPI_COMM_WORLD);
@@ -493,20 +505,20 @@ int compute_averages(int changed)
     for(i = 0; i < num_cabinets; i++) {
       cabinet = getCabinetDoc(cabinets_local, i);
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (a percorrer cabinets), i = %d\n", __LINE__, i);
+  printf("cheguei aqui %d (a percorrer cabinets), i = %d, proc_id = %d\n", __LINE__, i, proc_id);
 #endif
 
       /* reset cabinet */
       for(k = 0; k < num_subjects; k++) {
         cabinet[k] = 0;
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (reset cabinets), k = %d\n", __LINE__, k);
+  printf("cheguei aqui %d (reset cabinets), k = %d, proc_id = %d\n", __LINE__, k, proc_id);
 #endif
       }
       cabCounter = getCabinetDocCounter(cabinets_local, i);
       *cabCounter = 0;
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
+  printf("cheguei aqui %d (cabCounter), cabCounter = %f, proc_id = %d\n", __LINE__, *cabCounter, proc_id);
 #endif
 
       /* compute averages for cabinet */
@@ -517,21 +529,21 @@ int compute_averages(int changed)
         for(j = 0; j < num_docs_chunk; j++) {
           doc = getDocument(j);
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (getDocument), j = %d\n", __LINE__, j);
+  printf("cheguei aqui %d (getDocument), j = %d, proc_id = %d\n", __LINE__, j, proc_id);
 #endif
           if(docsCabinet[j] == i) {
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d\n", __LINE__, docsCabinet[j]);
+  printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d, proc_id = %d\n", __LINE__, docsCabinet[j], proc_id);
 #endif
             for(k = 0; k < num_subjects; k++) {
               cabinet[k] += doc[k];
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabinet[k] += doc[k]), k = %d\n", __LINE__, k);
+  printf("cheguei aqui %d (cabinet[k] += doc[k]), k = %d, proc_id = %d\n", __LINE__, k, proc_id);
 #endif
             }
             (*cabCounter)++;
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
+  printf("cheguei aqui %d (cabCounter), cabCounter = %f, proc_id = %d\n", __LINE__, *cabCounter, proc_id);
 #endif
           }
         }
@@ -543,28 +555,28 @@ int compute_averages(int changed)
         for(j = 0; j < num_docs_master; j++) {
           doc = getDocument(j);
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (getDocument), j = %d\n", __LINE__, j);
+  printf("cheguei aqui %d (getDocument), j = %d, proc_id = %d\n", __LINE__, j, proc_id);
 #endif
           if(docsCabinet[j] == i) {
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d\n", __LINE__, docsCabinet[j]);
+  printf("cheguei aqui %d (docsCabinet[j]), docsCabinet[j] = %d, proc_id = %d\n", __LINE__, docsCabinet[j], proc_id);
 #endif
             for(k = 0; k < num_subjects; k++) {
               cabinet[k] += doc[k];
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabinet[k] += doc[k]), k = %d\n", __LINE__, k);
+  printf("cheguei aqui %d (cabinet[k] += doc[k]), k = %d, proc_id = %d\n", __LINE__, k, proc_id);
 #endif
             }
             (*cabCounter)++;
 #if !__MPI_TEST_AVERAGES__
-  printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
+  printf("cheguei aqui %d (cabCounter), cabCounter = %f, proc_id = %d\n", __LINE__, *cabCounter, proc_id);
 #endif
           }
         }
       }
     }
 #if !__MPI_TEST_AVERAGES_MOVEFLAG__
-  printf("cheguei aqui %d (vai para addCabinetMoveFlag(changed)), changed = %d\n", __LINE__, changed);
+  printf("cheguei aqui %d (vai para addCabinetMoveFlag(changed)), changed = %d, proc_id = %d\n", __LINE__, changed, proc_id);
 #endif
     clearCabinetMoveFlag(cabinets_local);
     addCabinetMoveFlag(cabinets_local, changed);
@@ -577,20 +589,20 @@ int compute_averages(int changed)
   for(i = 0; i < num_cabinets; i++) {
     cabinet = getCabinetDoc(cabinets, i);
 #if !__MPI_TEST_AVERAGES__
-    printf("cheguei aqui %d (a percorrer cabinets), i = %d\n", __LINE__, i);
+    printf("cheguei aqui %d (a percorrer cabinets), i = %d, proc_id = %d\n", __LINE__, i, proc_id);
 #endif
 
     /* reset cabinet */
     for(k = 0; k < num_subjects; k++) {
       cabinet[k] = 0;
 #if !__MPI_TEST_AVERAGES__
-      printf("cheguei aqui %d (reset cabinets), k = %d\n", __LINE__, k);
+      printf("cheguei aqui %d (reset cabinets), k = %d, proc_id = %d\n", __LINE__, k, proc_id);
 #endif
     }
     cabCounter = getCabinetDocCounter(cabinets, i);
     *cabCounter = 0;
 #if !__MPI_TEST_AVERAGES__
-    printf("cheguei aqui %d (cabCounter), cabCounter = %f\n", __LINE__, *cabCounter);
+    printf("cheguei aqui %d (cabCounter), cabCounter = %f, proc_id = %d\n", __LINE__, *cabCounter, proc_id);
 #endif
   }
   clearCabinetMoveFlag(cabinets);
@@ -623,7 +635,6 @@ int compute_averages(int changed)
 #endif
 
   /* calcule global average with the contribution of each process */
-	MPI_Barrier(MPI_COMM_WORLD);
   MPI_Allreduce((void*)cabinets_local, (void*)cabinets, num_cabinets*(num_subjects+DOCS_COUNT)+_MPI_FLAGS_, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #if !__MPI_AVERAGES_PRINT__
   printf("Global Averages1: (%d)\n", proc_id);
@@ -640,7 +651,7 @@ int compute_averages(int changed)
     for(k = 0; k < num_subjects; k++) {
       cabinet[k] /= *cabCounter;
 #if !__MPI_TEST_AVERAGES__
-      printf("cheguei aqui %d (cabinet[k] /= *cabCounter), k = %d cabinet[k] = %f\n", __LINE__, k, *cabCounter);
+      printf("cheguei aqui %d (cabinet[k] /= *cabCounter), k = %d cabinet[k] = %f, proc_id = %d\n", __LINE__, k, *cabCounter, proc_id);
 #endif
     }
   }
@@ -661,7 +672,7 @@ int compute_averages(int changed)
   num_cycles++;
 
 #if !__MPI_TEST_AVERAGES_MOVEFLAG__
-    printf("cheguei aqui %d (averages return), num_cycles = %u \t getCabinetMoveFlag(cabinets) = %f \t getCabinetMoveFlag(cabinets_local) = %f\n", __LINE__, num_cycles-1, getCabinetMoveFlag(cabinets), getCabinetMoveFlag(cabinets_local));
+    printf("cheguei aqui %d (averages return), num_cycles = %u \t getCabinetMoveFlag(cabinets) = %f \t getCabinetMoveFlag(cabinets_local) = %f, proc_id = %d\n", __LINE__, num_cycles-1, getCabinetMoveFlag(cabinets), getCabinetMoveFlag(cabinets_local), proc_id);
 #endif
   return getCabinetMoveFlag(cabinets) != 0;
 }
@@ -692,7 +703,7 @@ int move_documents()
           shortest = dist;
           shorty = j;
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d (move_documents a colocar shorty = j e shortest = dist), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \n", __LINE__, i, j, shortest, dist);
+  printf("cheguei aqui %d (move_documents a colocar shorty = j e shortest = dist), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f , proc_id = %d\n", __LINE__, i, j, shortest, dist, proc_id);
 #endif
         }
       }
@@ -700,7 +711,7 @@ int move_documents()
         docsCabinet[i] = shorty;
         changed = 1;
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d (a mudar documento de cabinet), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \t docsCabinet[i] = %d\n", __LINE__, i, j, shortest, dist, docsCabinet[i]);
+  printf("cheguei aqui %d (a mudar documento de cabinet), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \t docsCabinet[i] = %d, proc_id = %d\n", __LINE__, i, j, shortest, dist, docsCabinet[i], proc_id);
 #endif
       }
     }
@@ -720,7 +731,7 @@ int move_documents()
           shortest = dist;
           shorty = j;
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d (move_documents a colocar shorty = j e shortest = dist), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \n", __LINE__, i, j, shortest, dist);
+  printf("cheguei aqui %d (move_documents a colocar shorty = j e shortest = dist), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f , proc_id = %d\n", __LINE__, i, j, shortest, dist, proc_id);
 #endif
         }
       }
@@ -728,14 +739,14 @@ int move_documents()
         docsCabinet[i] = shorty;
         changed = 1;
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d (a mudar documento de cabinet), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \t docsCabinet[i] = %d\n", __LINE__, i, j, shortest, dist, docsCabinet[i]);
+  printf("cheguei aqui %d (a mudar documento de cabinet), i(docs) = %d \t j(cabs) = %d \t shortest = %f \t dist = %f \t docsCabinet[i] = %d, proc_id = %d\n", __LINE__, i, j, shortest, dist, docsCabinet[i], proc_id);
 #endif
       }
     }
   }
 
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d (return de mudar documento de cabinet), changed = %d\n", __LINE__, changed);
+  printf("cheguei aqui %d (return de mudar documento de cabinet), changed = %d, proc_id = %d\n", __LINE__, changed, proc_id);
 #endif
 	return changed;
 }
@@ -748,7 +759,7 @@ void algorithm()
   compute_averages(changed);
 	do {
 #if !__MPI_TEST_MOVES__
-    printf("cheguei aqui %d (algorithm a fazer nova iteração), num_cycles = %u\n", __LINE__, num_cycles);
+    printf("cheguei aqui %d (algorithm a fazer nova iteração), num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
 #endif
 		changed = move_documents();
 	} while(compute_averages(changed) && num_cycles < __NUM_CYCLES_LIMIT__);
@@ -758,7 +769,7 @@ void algorithm()
 
 int main (int argc, char **argv)
 {
-	FILE *in, *out;
+	FILE *in;
 	unsigned int ncabs;
 	double time;
 
@@ -792,10 +803,29 @@ int main (int argc, char **argv)
 			ncabs = strtol(argv[2],NULL,10);
 		} else ncabs = 0;
 
+    filename = (char*)malloc(sizeof(char)*256);
+    strcpy(filename, argv[1]);
+    strcat(filename, ".out");
+
 		//time = omp_get_wtime();
 		time = - MPI_Wtime();
 		
 		load_data(in, ncabs);
+#if !__MPI_AVERAGES_PRINT__
+    volatile InputBlock *docs = procData;
+    printf("MasterDocuments: procData em master, proc_id = %d\n", proc_id);
+    for(z=0; z < num_docs_master*num_subjects; z++) {
+      printf("%.2f ", docs[z]);
+    }
+    printf("\n");
+    printf("MasterCabinets: docsCabinet em master, proc_id = %d\n", proc_id);
+    volatile DocsCab *subjs = docsCabinet;
+    for(z=0; z < num_docs_master; z++) {
+      printf("%u ", subjs[z]);
+    }
+    printf("\n");
+#endif
+
 		fclose(in);
 	}
 	
@@ -804,21 +834,22 @@ int main (int argc, char **argv)
 		receiveDocuments();
 	}
 
-
+	MPI_Barrier (MPI_COMM_WORLD);
 	/* data loaded, file closed */
 	algorithm();
 #if !__MPI_TEST_MOVES__
-  printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u\n", __LINE__, num_cycles);
+  printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
 #endif
 
   /* print output */
 	/* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
+	MPI_Barrier (MPI_COMM_WORLD);
 	data_printDocuments();
 
 	MPI_Barrier (MPI_COMM_WORLD);
 	//time = omp_get_wtime() - time;
 	if(!proc_id)	time += MPI_Wtime();
-
+/*
 	if((out = fopen("/mnt/nimbus/pool/CPD/groups/tue_11h00/01/project/runtimes_cpd01.log", "a")) == NULL) {
 		printf("[fopen-read] Cannot open file to read.\n");
 		exit(EXIT_FAILURE);
@@ -826,8 +857,7 @@ int main (int argc, char **argv)
 
 	fprintf(out, "== Distributed-Paralel == Id: %d Hostname: %s \t\t Input: %s,\t Processes number: %d, \t\t Elapsed Time: %g seconds\n\n", proc_id, hostname, argv[1], num_procs, time);
 	fclose(out);
-	//freeData(data);
-	
+*/
 	MPI_Finalize();
 
 	return 0;
