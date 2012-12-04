@@ -1,0 +1,16 @@
+\begin{thebibliography}{1}\setlength{\itemsep}{-1ex}\small
+
+\bibitem{ex1}
+C.~et~all.
+\newblock Bigtable: a distributed storage system for structured data.
+\newblock {\em Proceedings of the 7th Conference on USENIX Symposium on
+  Operating Systems Design and Implementation}, 7(06 - 08):1--15, November
+  2006.
+
+\bibitem{ex2}
+D.~et~all.
+\newblock Dynamo: Amazon’s highly available key-value store.
+\newblock {\em Proceedings of twenty-first ACM SIGOPS symposium on Operating
+  systems principles}, pages 205--220, 2007.
+
+\end{thebibliography}
