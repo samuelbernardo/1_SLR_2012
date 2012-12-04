@@ -91,6 +91,7 @@ unsigned int num_subjects;
 unsigned int num_cycles;
 static volatile Document **documents;
 static volatile Cabinet **cabinets;
+char *filename;
 
 void newData() 
 {
@@ -126,8 +127,14 @@ void data_setDocument(Document *doc, unsigned int pos)
 void data_printDocuments() 
 {
 	unsigned int i;
+	FILE *out;
+	if((out = fopen(filename, "w")) == NULL) {
+		printf("[fopen-read] Cannot open file to read.\n");
+		exit(EXIT_FAILURE);
+	}
 	for(i = 0; i < num_documents; i++) {
-		printf("%u %u\n", documents[i]->id, documents[i]->cabinet);
+		//printf("%u %u\n", documents[i]->id, documents[i]->cabinet);
+		fprintf(out,"%u %u\n", documents[i]->id, documents[i]->cabinet);
 	}
 }
 
@@ -167,9 +174,9 @@ Document *data_getDocument(Data *data, unsigned int pos) {
 
 /* read tokens from file */
 char *fstrtok(in, token, delim)
-	register FILE *in;
-	register char *token;
-	register const char *delim;
+register FILE *in;
+register char *token;
+register const char *delim;
 {
 	register char *spanp;
 	register int c, sc;
@@ -183,7 +190,7 @@ char *fstrtok(in, token, delim)
 	 * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
 	 */
 	tok = token;
-cont:
+	cont:
 	c = fgetc(in);
 	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
 		if (c == sc)
@@ -287,7 +294,7 @@ void compute_averages() {
 		}
 	}
 
-  num_cycles++;
+	num_cycles++;
 }
 
 double powa(double d1) {
@@ -335,14 +342,13 @@ void algorithm() {
 
 int main (int argc, char **argv)
 {
-	FILE *in, *out;
+	FILE *in;
 	//Data *data;
 	unsigned int ncabs;
-	double time;
 
-	omp_set_num_threads(1);
+	filename = (char*)malloc(sizeof(char)*256);
 
-  num_cycles = 0;
+	num_cycles = 0;
 
 	if(argc < 1 || argc > 3)
 	{
@@ -360,27 +366,19 @@ int main (int argc, char **argv)
 		ncabs = atoi(argv[2]);
 	} else ncabs = 0;
 
-	time = omp_get_wtime();
+
+	strcpy(filename, argv[1]);
+	strcat(filename, ".out");
 	data = load_data(in, ncabs);
 	fclose(in);
 	/* data loaded, file closed */
 	algorithm(data);
-	time = omp_get_wtime() - time;
+
 	data_printDocuments();
 
 #if !__TEST_MOVE_CYCLES__
-  printf("linha %d - numero de ciclos efectuados num_cycles = %u\n", __LINE__, num_cycles);
+	printf("linha %d - numero de ciclos efectuados num_cycles = %u\n", __LINE__, num_cycles);
 #endif
-
-	/*printf("documents post-processing\n");
-	data_printCabinets(data);*/
-	if((out = fopen("runtimes.log", "a")) == NULL) {
-		printf("[fopen-read] Cannot open file to read.\n");
-		exit(EXIT_FAILURE);
-	}
-	fprintf(out, "==Serial Test== Input: %s,\t Cores: %d, \t\t Elapsed Time: %g seconds\n", argv[1], omp_get_num_procs(), time);
-	fclose(out);
-	//freeData(data);
 	return 0;
 }
 

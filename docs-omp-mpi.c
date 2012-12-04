@@ -50,7 +50,7 @@
 #define DOCS_COUNT 1
 
 /* limit of cycles when running the algorithm */
-#define __NUM_CYCLES_LIMIT__ 10000
+#define __NUM_CYCLES_LIMIT__ 100
 
 /* Document class */
 /*typedef struct document {
@@ -125,7 +125,8 @@ void clearCabinetMoveFlag(volatile double *cabs)
 typedef double InputBlock;
 
 static volatile InputBlock *procData;
-static volatile InputBlock *procDataBuffer;
+static volatile InputBlock *procData1;
+static volatile InputBlock *procData2;
 
 void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
 {
@@ -133,8 +134,8 @@ void allocInputBlock(unsigned int docs, unsigned int subjs, unsigned int procs)
 	  procData = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
   }
   else {
-    procData = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
-    procDataBuffer = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
+    procData1 = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
+    procData2 = (InputBlock *)malloc(sizeof(InputBlock)*(subjs*(docs/procs)));
   }
 }
 
@@ -185,7 +186,8 @@ void newData()
 void freeData()
 {
   free((void*)procData);
-  free((void*)procDataBuffer);
+  free((void*)procData1);
+  free((void*)procData2);
 
   free((void*)docsCabinet);
 	
@@ -219,7 +221,7 @@ void data_printDocuments()
     for(n=1; n < num_procs; n++) {
       MPI_Recv(docsCabAll, num_docs_chunk, MPI_UNSIGNED, n, CAB_TAG, MPI_COMM_WORLD, &status);
       for(i = 0; i < num_docs_chunk; i++) {
-        printf("%u %u\n", docGlobalId, docsCabAll[i]);
+        //printf("%u %u\n", docGlobalId, docsCabAll[i]);
         fprintf(out, "%u %u\n", docGlobalId++, docsCabAll[i]);
       }
     }
@@ -227,7 +229,7 @@ void data_printDocuments()
   printf("cheguei aqui %d (master - verificar num_docs_master), num_docs_master = %d\n", __LINE__, num_docs_master);
 #endif
     for(i=0; i < num_docs_master; i++) {
-      printf("%u %u\n", docGlobalId, docsCabinet[i]);
+      //printf("%u %u\n", docGlobalId, docsCabinet[i]);
       fprintf(out, "%u %u\n", docGlobalId++, docsCabinet[i]);
     }
     fclose(out);
@@ -357,6 +359,7 @@ void load_data(FILE *in, unsigned int ncabs)
 
 	newData();
 	docScoresRequest = (MPI_Request*)malloc(sizeof(MPI_Request)*num_procs);
+  procData = procData1;
 
 	/*get document identifier*/
 #if !(__MPI_PROCS_NUMBER__ + 1)
@@ -833,25 +836,22 @@ int main (int argc, char **argv)
 		fclose(in);
 	}
 	
-  if(proc_id <= num_procs) {
-    /* receive documents for each process */
-    if(proc_id) {
-      receiveDocuments();
-    }
+	/* receive documents for each process */
+	if(proc_id) {
+		receiveDocuments();
+	}
 
-    MPI_Barrier (MPI_COMM_WORLD);
-    /* data loaded, file closed */
-    algorithm();
+	MPI_Barrier (MPI_COMM_WORLD);
+	/* data loaded, file closed */
+	algorithm();
 #if !__MPI_TEST_MOVES__
-    printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
+  printf("cheguei aqui %d - numero total de ciclos efectuados num_cycles = %u, proc_id = %d\n", __LINE__, num_cycles, proc_id);
 #endif
 
-    /* print output */
-    /* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
-    MPI_Barrier (MPI_COMM_WORLD);
-    data_printDocuments();
-
-  }
+  /* print output */
+	/* master aguarda o envio de vector de cabinets associados aos documentos iniciais de todas as partições */
+	MPI_Barrier (MPI_COMM_WORLD);
+	data_printDocuments();
 
 	MPI_Barrier (MPI_COMM_WORLD);
 	//time = omp_get_wtime() - time;
