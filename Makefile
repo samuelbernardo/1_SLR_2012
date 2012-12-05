@@ -102,10 +102,10 @@ testbig: tbs tbp tbd
 tbs: compile
 	./docs-serial sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
 	diff ex10m-100d.tst sampleDocInstances/ex10m-100d.out > ex10m-100d.diff
-	./docs-serial sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
-	diff ex100m-100d.tst sampleDocInstances/ex100m-100d.out > ex100m-100d.diff
-	./docs-serial sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
-	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
+#	./docs-serial sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
+#	diff ex100m-100d.tst sampleDocInstances/ex100m-100d.out > ex100m-100d.diff
+#	./docs-serial sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
+#	diff ex1M-100d.tst sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
 
 tbp: compile
 	./docs-omp sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
@@ -118,11 +118,25 @@ tbp: compile
 tbd: compile
 	availableNodes $(NUMNODES) > nodeslist.txt
 	sed -i 's/,/\n/g' nodeslist.txt
-	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
 	diff sampleDocInstances/ex10m-100d.in.out sampleDocInstances/ex10m-100d.out > ex10m-100d.diff
-	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
 	diff sampleDocInstances/ex100m-100d.in.out sampleDocInstances/ex100m-100d.out > ex100m-100d.diff
-	mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex100k-200-4-mod.in > ex100k-200-4-mod.tst
+	diff sampleDocInstances/ex100k-200-4-mod.in.out sampleDocInstances/ex100k-200-4-mod.out > ex100k-200-4-mod.diff
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-mpi sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
+	diff sampleDocInstances/ex1M-100d.in.out sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
+
+tbpd: compile
+	availableNodes $(NUMNODES) > nodeslist.txt
+	sed -i 's/,/\n/g' nodeslist.txt
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-omp-mpi sampleDocInstances/ex10m-100d.in > ex10m-100d.tst
+	diff sampleDocInstances/ex10m-100d.in.out sampleDocInstances/ex10m-100d.out > ex10m-100d.diff
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-omp-mpi sampleDocInstances/ex100m-100d.in > ex100m-100d.tst
+	diff sampleDocInstances/ex100m-100d.in.out sampleDocInstances/ex100m-100d.out > ex100m-100d.diff
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-omp-mpi sampleDocInstances/ex100k-200-4-mod.in > ex100k-200-4-mod.tst
+	diff sampleDocInstances/ex100k-200-4-mod.in.out sampleDocInstances/ex100k-200-4-mod.out > ex100k-200-4-mod.diff
+	time mpirun --hostfile nodeslist.txt -np $(NUMNODES) ./docs-omp-mpi sampleDocInstances/ex1M-100d.in > ex1M-100d.tst
 	diff sampleDocInstances/ex1M-100d.in.out sampleDocInstances/ex1M-100d.out > ex1M-100d.diff
 
 val:

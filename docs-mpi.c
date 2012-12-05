@@ -49,7 +49,7 @@
 #define DOCS_COUNT 1
 
 /* limit of cycles when running the algorithm */
-#define __NUM_CYCLES_LIMIT__ 100
+#define __NUM_CYCLES_LIMIT__ 100000
 
 /* Document class */
 /*typedef struct document {
